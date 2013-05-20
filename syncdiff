@@ -1,0 +1,63 @@
+#!/usr/bin/perl
+
+# Standard includes:
+use Getopt::Long;
+Getopt::Long::Configure(
+			qw(
+				bundling
+				no_getopt_compat
+				posix_default 
+				no_ignore_case
+				gnu_compat
+			));
+
+# Local program includes
+use SyncDiff::Config;
+
+# Debugging includes
+use Data::Dumper;
+
+## End includes
+
+# Setup things:
+$main::VERSION = 0.01;
+
+sub display_help {
+	print "Right now, there is no helping anyone.\n";
+	print "If you are running this you had better be John 'Warthog9' Hawley\n";
+}
+
+#
+# Run something
+#
+
+# Setup the argument handling, can't do much
+# till we've procssed all of that
+my $config_file;
+my $run_as_server;
+my $get_version;
+my $get_help;
+GetOptions (
+		"c|config=s"	=> \$config_file,      # string
+		"s|server"	=> \$run_as_server,
+		"v|version"	=> \$get_version,
+		"h|?|help"	=> \$get_help,
+	   );
+
+print "Config File: ". $config_file ."\n";
+print "Run as Server? ". $run_as_server ."\n";
+print "Get Version? ". $get_version ."\n";
+
+if( $get_version ){
+	print "Version: ". $main::VERSION ."\n";
+	exit(0);
+}
+
+if( $get_help ){
+	display_help();
+	exit(0);
+}
+
+#my $config = SyncDiff::Config->new();
+#
+#$config->read_config('csync2.cfg');
