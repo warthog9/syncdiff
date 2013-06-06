@@ -1,6 +1,9 @@
 #!/usr/bin/perl
 
-package SyncDiff::Config 0.01;
+#package SyncDiff::Config 0.01;
+package SyncDiff::Config;
+$SyncDiff::Config::VERSION = '0.01';
+
 use Moose;
 
 use Parse::Lex;

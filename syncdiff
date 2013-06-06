@@ -20,7 +20,7 @@ use Data::Dumper;
 ## End includes
 
 # Setup things:
-$main::VERSION = 0.01;
+$main::VERSION = '0.01';
 
 sub display_help {
 	print "Right now, there is no helping anyone.\n";
