@@ -5,6 +5,7 @@ use Moose;
 
 use Parse::Lex;
 use SyncDiff::ParseCfg;
+use SyncDiff::Util;
 
 use Data::Dumper;
 
@@ -159,11 +160,6 @@ sub read_config {
 	print Dumper $self->config;
 	print "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n";
 } # end read_config()
-
-sub mitm_callback {
-	my ( $coderef, @args ) = @_;
-	sub { $coderef->( ( @args, @_ ) ) }
-}
 
 sub lex {
 	my($self) = @_;
