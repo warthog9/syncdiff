@@ -27,6 +27,12 @@ has 'lexer' => (
 sub read_config {
 	my ($self, $config_file) = @_;
 
+#	print "---------------------------\n";
+#	print "config file:\n";
+#	print "---------------------------\n";
+#	print Dumper $config_file;
+#	print "^^^^^^^^^^^^^^^^^^^^^^^^^^^\n";
+
 	open( my $fh, "<", $config_file) or die "can't open $config_file - you've done something horribly wrong! $!\n";
 
 	my @tokens = (
@@ -74,6 +80,9 @@ sub read_config {
 
 
 	Parse::Lex->trace;  # Class method
+#	print "SyncDiff::Config->read_config() - Turning trace on\n";
+#	Parse::Lex->trace;  # Class method
+#	print "SyncDiff::Config->read_config() - Trace is enabled\n";
 
 	#print Dumper $self;
 
@@ -82,6 +91,8 @@ sub read_config {
 
 	my $lexer = Parse::Lex->new(@tokens);
 	#$lexer->from($fh);
+
+##	print "SyncDiff::Config->read_config() - Made it past adding the tokens\n";
 
 	#bless $lexer, "Parse::Lex";
 
@@ -111,10 +122,16 @@ sub read_config {
 
 	$parser->YYData->{DATA} = $file_data;
 	$lexer->from( $parser->YYData->{DATA} );
+
+##	print "SyncDiff::Config->read_config() - About to run the parser...\n";
+
 	$parser->YYParse(
 				YYlex => $callback_ref_lex,
 				YYerror => \&perl_error,
 			);
+			#	YYdebug => 0x1F,
+
+##	print "SyncDiff::Config->read_config() - Made it past the parser\n";
 				##YYdebug => 0x1F,
 
 #	print "#########################################################\n";
@@ -132,7 +149,7 @@ sub read_config {
 
 	my %config;
 
-	print Dumper $self->config;
+	#print Dumper $self->config;
 	if( defined undef ){
 		%config = $self->config;
 	}
@@ -147,11 +164,11 @@ sub read_config {
 	$config{'prefixes'} = \%prefixes_temp;
 	( $config{'ignore_uid'}, $config{'ignore_gid'}, $config{'ignore_mod'} ) = $parser->get_ignores();
 
-	print "#########################################################\n";
-	print Dumper \%config;
-	print "---------------------------------------------------------\n";
-	print Dumper %group_temp;
-	print "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n";
+#	print "#########################################################\n";
+#	print Dumper \%config;
+#	print "---------------------------------------------------------\n";
+#	print Dumper %group_temp;
+#	print "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n";
 
 #	print "#########################################################\n";
 #	print Dumper \%config;
@@ -159,9 +176,9 @@ sub read_config {
 
 	$self->_write_config( \%config );
 
-	print "#########################################################\n";
-	print Dumper $self->config;
-	print "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n";
+#	print "#########################################################\n";
+#	print Dumper $self->config;
+#	print "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n";
 } # end read_config()
 
 sub lex {
@@ -171,17 +188,17 @@ sub lex {
 
 	#return("\n", "\n") if( $token->name eq "NL" );
 	while( $token->name eq "NL" || $token->name eq "COMMENT"){
-		print "Lexer: Line $.\t";
-		print "Lexer: Type: ", $token->name, "\t";
-		print "Lexer: Getstring: ". $token->getText ."\t";
-		print "Lexer: Content:->", $token->text, "<-\n";
+#		print "Lexer: Line $.\t";
+#		print "Lexer: Type: ", $token->name, "\t";
+#		print "Lexer: Getstring: ". $token->getText ."\t";
+#		print "Lexer: Content:->", $token->text, "<-\n";
 		$token = ${ $self->{lexer} }->next;
 	}
 
-	print "Lexer: Line $.\t";
-	print "Lexer: Type: ", $token->name, "\t";
-	print "Lexer: Getstring: ". $token->getText ."\t";
-	print "Lexer: Content:->", $token->text, "<-\n";
+#	print "Lexer: Line $.\t";
+#	print "Lexer: Type: ", $token->name, "\t";
+#	print "Lexer: Getstring: ". $token->getText ."\t";
+#	print "Lexer: Content:->", $token->text, "<-\n";
 
 	return ('', undef) if ${ $self->{lexer} }->eoi;
 	return ($token->name, $token->name) if( $token->getText eq "" );

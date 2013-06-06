@@ -32,9 +32,9 @@ sub get_ignores {
 
 sub new_group {
 	my ($name) = @_;
-	print "function: new_group()\n";
-
-	print "\tnew_group - name: ". $name ."\n";
+#	print "function: new_group()\n";
+#
+#	print "\tnew_group - name: ". $name ."\n";
 
 	if( $name eq "" ){
 		$name = "group_". $autonum;
@@ -50,15 +50,15 @@ sub add_host {
 	my ($hostname) = @_;
 	my $local_hostname = hostname;
 
-	print "function: add_host()\n";
-
-	print "\tadd_host: ". $hostname ."\n";
+#	print "function: add_host()\n";
+#
+#	print "\tadd_host: ". $hostname ."\n";
 
 	$hostname = lc($hostname);
 	$local_hostname = lc($local_hostname);
 
 	if( $hostname eq $local_hostname){
-		print "\t~~ Found ourselves\n";
+		#print "\t~~ Found ourselves\n";
 		return;
 	} 
 
@@ -71,12 +71,12 @@ sub add_host {
 		$groups{$curgroup}->{'host'} = \@temparray;
 	}
 
-	print Dumper \@_;
+#	print Dumper \@_;
 
 	my @temparray = ( $hostname, );
 
-	print Dumper \@temparray;
-	print Dumper $groups{$curgroup}->{'host'};
+#	print Dumper \@temparray;
+#	print Dumper $groups{$curgroup}->{'host'};
 
 	push( @{ $groups{$curgroup}->{'host'} }, $hostname);
 } # end add_host
@@ -84,8 +84,8 @@ sub add_host {
 sub add_patt {
 	my($pattern) = @_;
 
-	print "function: add_patt()\n";
-	print "\tadd_patt - pattern: ". $pattern ."\n";
+#	print "function: add_patt()\n";
+#	print "\tadd_patt - pattern: ". $pattern ."\n";
 
 	if(
 		$groups{$curgroup}->{'host'} == undef
@@ -101,7 +101,7 @@ sub add_patt {
 
 sub set_key {
 	my( $key ) = @_;
-	print "function: set_key()\n";
+#	print "function: set_key()\n";
 
 	if( $groups{$curgroup}->{'key'} ne "" ){
 		print "*** Multiple keys found for group '". $curgroup ."' - last one wins!  You are warned. ***\n";
@@ -117,7 +117,7 @@ sub set_key {
 
 sub set_auto {
 	my ( $auto_resolve ) = @_;
-	print "function: set_auto()\n";
+#	print "function: set_auto()\n";
 
 	$auto_resolve = lc( $auto_resolve );
 
@@ -164,14 +164,14 @@ sub set_auto {
 
 sub set_bak_dir {
 	my ($back_dir) = @_;
-	print "function: set_bak_dir()\n";
+#	print "function: set_bak_dir()\n";
 
 	$groups{$curgroup}->{'back_dir'} = $back_dir;
 } # end set_bak_dir();
 
 sub set_bak_gen {
 	my ($backup_generations) = @_;
-	print "function: set_bak_gen()\n";
+#	print "function: set_bak_gen()\n";
 
 	if( $backup_generations =~ /[^0-9]+/ ){
 		print "*** WARNING ***\n";
@@ -185,7 +185,7 @@ sub set_bak_gen {
 } # end set_back_gen()
 
 sub check_group {
-	print "function: check_group()\n";
+#	print "function: check_group()\n";
 
 	if( length( $groups{$curgroup}->{'key'} ) <= 0 ){
 		die("Config error: groups must have a key.\n");
@@ -215,7 +215,7 @@ sub set_action_dolocal {
 sub new_prefix {
 	my( $pname ) = @_;
 
-	print "function: new_prefix: $pname\n";
+#	print "function: new_prefix: $pname\n";
 
 	$curprefix = $pname;
 
@@ -224,7 +224,7 @@ sub new_prefix {
 
 sub new_prefix_entry {
 	my( $pattern, $path ) = @_;
-	print "function: new_prefix_entry()\n";
+#	print "function: new_prefix_entry()\n";
 
 	if( $path !~ /^\// ){
 		print "\t Prefix Path: '". $path ."' is not an absolute path.\n";
@@ -247,7 +247,7 @@ sub new_prefix_entry {
 
 sub new_ignore {
 	my( $propname ) = @_;
-	print "function: new_ignore()\n";
+#	print "function: new_ignore()\n";
 
 	if( $propname eq "uid" ){
 		$ignore_uid = 1;
@@ -262,7 +262,7 @@ sub new_ignore {
 
 sub on_cygwin_lowercase {
 	my( $string ) = @_;
-	print "function: on_cygwin_lowercase()\n";
+#	print "function: on_cygwin_lowercase()\n";
 
 	return lc( $string );
 } # 
