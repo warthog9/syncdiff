@@ -10,9 +10,14 @@ Getopt::Long::Configure(
 				no_ignore_case
 				gnu_compat
 			));
+use POSIX ":sys_wait_h";
 
 # Local program includes
 use SyncDiff::Config;
+use SyncDiff::Scanner;
+use SyncDiff::DB;
+use SyncDiff::File;
+use SyncDiff::Scanner;
 
 # Debugging includes
 use Data::Dumper;
@@ -37,9 +42,11 @@ my $config_file;
 my $run_as_server;
 my $get_version;
 my $get_help;
+my $run_only_scan;
 GetOptions (
 		"c|config=s"	=> \$config_file,      # string
 		"s|server"	=> \$run_as_server,
+		"scan"		=> \$run_only_scan,
 		"v|version"	=> \$get_version,
 		"h|?|help"	=> \$get_help,
 	   );
@@ -57,6 +64,67 @@ if( $get_help ){
 	display_help();
 	exit(0);
 }
+
+#
+# Load up the Configuration file
+#
+
+if( ! defined $config_file ){
+	$config_file = "csync2.cfg";
+}
+
+#print "---------------------------\n";
+#print "config file:\n";
+#print "---------------------------\n";
+#print Dumper $config_file;
+#print "^^^^^^^^^^^^^^^^^^^^^^^^^^^\n";
+
+my $config = SyncDiff::Config->new();
+
+$config->read_config( $config_file );
+
+# End opening and parsing the config file
+# 	$config now exists and can be passed around
+# 	as needed
+
+my $dbconnection = SyncDiff::DB->new();
+
+$dbconnection->file( "psync.sqlite" );
+
+$dbconnection->connect_and_fork();
+
+if( $run_only_scan ){
+	my %running_scanners = ();
+	#print Dumper \$config->config->{groups};
+	foreach $group_name ( keys $config->config->{groups} ){
+		print "run only scan group: ". $group_name ."\n";
+		
+		my $scanner = undef;
+
+		foreach $base_path ( @{ $config->config->{groups}->{$group_name}->{patterns} } ){
+			print "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n";
+			#print "\tBase Path: ". $base_path ."\n";
+
+			#print "\ttruepath: ". $config->get_truepath( $base_path ) ."\n";
+			$scanner = SyncDiff::Scanner->new( dbref => $dbconnection, group => $group_name, groupbase => $base_path );
+			$scanner->fork_and_scan();
+
+			$running_scanner{$group_name}{$base_path} = $scanner;
+			
+			#print Dumper $scanner;
+
+			#$scanner->create_transaction_id();
+			print "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n";
+		} # end foreach $base_path
+	} # end foreach $group_name
+
+	do {
+		my $kid = waitpid(-1,0);
+	} while $kid > 0;
+
+	exit(0);
+} # end if( $run_only_scan )
+
 
 #my $config = SyncDiff::Config->new();
 #
