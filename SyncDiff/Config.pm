@@ -65,7 +65,7 @@ sub read_config {
 			COMMENT		\/\/.*\n*
 			NL		[\n\r]
 		),
-		qw(COMMENT), q{ #.*\n* },
+		qw(COMMENT), "#.*\n*" ,
 		qw(TK_STRING),	[qw(" (?:[^"]+|"")* ")],
 		qw(TK_STRING), q([^\s;:{}\(\)\@\n\r\#]+),
 		qw(config), sub {
@@ -75,6 +75,7 @@ sub read_config {
 			die qq!can\'t analyze: "$_[1]"!;
 		},
 	);
+#		qw(COMMENT), qw( \#.*\n* ),
 #		qw(TK_STRING),	qw(\S+),
 #			COMMENT		#.*\n*
 
