@@ -211,6 +211,32 @@ sub perl_error {
 #	warn "Error: found ",$self->YYCurtok,
 #		" and expecting one of ",join(" or ",$self->YYExpect);
 #	print Dumper \@_;
+} # end perl_error()
+
+sub get_truepath {
+	my( $self, $path ) = @_;
+
+	if( $path =~ /^\// ){
+		return $path;
+	}
+
+	if( $path =~ /^%/ ){
+		my $prefix = $path;
+		$prefix =~ s/^\%([^\%]+)\%.*$/$1/;
+
+##		print "SyncDiff::Config->get_truepath() - prefix: ". $prefix ."\n";
+
+		#print Dumper $self->{config}->{prefixes};
+
+		my $prefix_path = $self->{config}->{prefixes}->{$prefix};
+
+		my $truepath = $path;
+		$truepath =~ s/%$prefix%/$prefix_path/;
+
+		return $truepath;
+	}
+
+	return undef;
 }
 
 #no moose;
