@@ -80,7 +80,6 @@ sub read_config {
 #			COMMENT		#.*\n*
 
 
-	Parse::Lex->trace;  # Class method
 #	print "SyncDiff::Config->read_config() - Turning trace on\n";
 #	Parse::Lex->trace;  # Class method
 #	print "SyncDiff::Config->read_config() - Trace is enabled\n";
