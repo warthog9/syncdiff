@@ -101,13 +101,13 @@ sub add_host {
 sub add_patt {
 	my($flat, $pattern) = @_;
 
-	print "function: add_patt()\n";
-	print "\tadd_patt - pattern: ". $pattern ."\n";
+#	print "function: add_patt()\n";
+#	print "\tadd_patt - pattern: ". $pattern ."\n";
 
 	if(
-		$groups{$curgroup}->{'host'} == undef
+		$groups{$curgroup}->{'patterns'} == undef
 		||
-		$groups{$curgroup}->{'host'} eq ""
+		$groups{$curgroup}->{'patterns'} eq ""
 	){
 		my @temparray = ();
 		$groups{$curgroup}->{'patterns'} = \@temparray;
@@ -281,8 +281,12 @@ sub on_cygwin_lowercase {
 	my( $string ) = @_;
 #	print "function: on_cygwin_lowercase()\n";
 
-	return lc( $string );
-} # 
+	lc( $string );
+
+#	print "on_cygwin_loewrcase: ". $string ."\n";
+
+	return $string;
+} # end on_cygwin_lowercase() 
 
 sub disable_cygwin_lowercase_hack {
 	print "function: disable_cygwin_lowercase_hack()\n";
