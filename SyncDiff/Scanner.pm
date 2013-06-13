@@ -93,14 +93,42 @@ override 'run_child' => sub {
 sub scan {
 	my( $self ) = @_;
 
+	#
+	# Totally an Invader Zim reference
+	#
 	print "I'm SCANNING I'm SCANNING! - $$\n";
 
 	$self->create_transaction_id();
+
+
+	#
+	# This checks the files that we *DO* have on the
+	# system, we also need to check the files in the
+	# database to see if they are present, if not
+	# they need to be marked as deleted.
+	#
 
 	find( {
 		wanted		=> sub { $self->find_wanted },
 		no_chdir	=> 0,
 		}, "/" );
+
+	#
+	# Deletion Detection
+	#
+
+	my $filelist = $self->dbref->lookup_filelist( $self->group, $self->groupbase );
+
+	print "Object...\n";
+	print Dumper $filelist;
+
+	foreach my $fileobj ( @{ $filelist } ){
+		if( ! -e $fileobj->filepath ){
+			print "File ". $fileobj->filepath ." was deleted\n";
+			$fileobj->last_transaction( $self->current_transaction_id );
+			$self->dbref->mark_deleted( $fileobj);
+		}
+	}
 } # end scan()
 
 sub find_wanted {
