@@ -60,7 +60,7 @@ sub connect {
 		$self->file( $file_to_open );
 	}
 
-	print "DB:connect(): File as it currently exists: |". $self->file ."|\n";
+##	print "DB:connect(): File as it currently exists: |". $self->file ."|\n";
 
 	my $file = $self->file;
 
@@ -91,9 +91,9 @@ sub connect {
 	# Beyond this is all random testing code
 	#
 
-	print "----------------------------------\n";
-	print Dumper $dbh;
-	print "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n";
+##	print "----------------------------------\n";
+##	print Dumper $dbh;
+##	print "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n";
 
 	my $select_all = $dbh->prepare("SELECT * FROM files");
 
@@ -101,9 +101,9 @@ sub connect {
 
 	my $row_ref = $select_all->fetchall_hashref('id');
 
-	print "----------------------------------\n";
-	print Dumper \$row_ref;
-	print "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n";
+##	print "----------------------------------\n";
+##	print Dumper \$row_ref;
+##	print "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n";
 	
 } # end connect()
 
@@ -126,10 +126,10 @@ sub recv_loop {
 		chomp($line);
 		my $response = $self->process_request( $line );
 
-		print "DB:recv_loop() - going to push response back at parent\n";
+##		print "DB:recv_loop() - going to push response back at parent\n";
 
-		print Dumper $response;
-		print "DB:recv_loop() - pushing...\n";
+##		print Dumper $response;
+##		print "DB:recv_loop() - pushing...\n";
 
 		if(
 			$response eq "0"
@@ -140,8 +140,11 @@ sub recv_loop {
 			$response = \%temp_resp;
 		}
 
-		print "Why is this a dud:\n";
-		print Dumper $response;
+##		print "Reference check: ". ref( $response ) ."\n";
+##		print Dumper $response;
+
+##		print "Why is this a dud:\n";
+##		print Dumper $response;
 
 		my $json_response = encode_json( $response );
 		print $PARENT_IPC $json_response ."\n";
@@ -151,10 +154,10 @@ sub recv_loop {
 sub process_request {
 	my( $self, $line ) = @_;
 
-	print "-----------------------\n";
-	print "DB:process_request - line:\n";
-	print Dumper $line;
-	print "^^^^^^^^^^^^^^^^^^^^^^^\n";
+##	print "-----------------------\n";
+##	print "DB:process_request - line:\n";
+##	print Dumper $line;
+##	print "^^^^^^^^^^^^^^^^^^^^^^^\n";
 	
 	my $request = decode_json( $line );
 
@@ -164,7 +167,7 @@ sub process_request {
 		return;
 	}
 
-	print "SyncDiff::DB->process_request() - Operation: |". $request->{operation} ."|\n";
+##	print "SyncDiff::DB->process_request() - Operation: |". $request->{operation} ."|\n";
 
 	if( $request->{operation} eq "new_transaction_id" ){
 		return $self->_new_transaction_id( $request->{transaction_id} );
@@ -202,16 +205,16 @@ sub create_database {
 sub send_request {
 	my( $self, %request ) = @_;
 
-	print "SyncDiff::DB->send_request() - Starting\n";
+##	print "SyncDiff::DB->send_request() - Starting\n";
 	my $json = encode_json( \%request );
 
 	my $db_pipe = $self->CHILD_IPC;
 
-	print Dumper $db_pipe;
+##	print Dumper $db_pipe;
 
 	print $db_pipe $json ."\n";
 
-	print "We sent the thing off, waiting for return\n";
+##	print "We sent the thing off, waiting for return\n";
 
 	my $line = undef;
 
@@ -222,14 +225,14 @@ sub send_request {
 		}
 	}
 
-	print Dumper $line;
+##	print Dumper $line;
 
 	chomp( $line );
 
-	print "Got response\n";
+##	print "Got response\n";
 
-	print "*** DB->send_request() - return line:\n";
-	print Dumper $line;
+##	print "*** DB->send_request() - return line:\n";
+##	print Dumper $line;
 
 	if( $line eq "0" ){
 		return 0;
@@ -261,7 +264,7 @@ sub _new_transaction_id {
 	my( $self, $transaction_id ) = @_;
 	my $dbh = $self->dbh;
 
-	print "~~~ Adding a transaction\n";
+##	print "~~~ Adding a transaction\n";
 
 ##	print Dumper $dbh;
 ##
@@ -275,7 +278,7 @@ sub _new_transaction_id {
 
 sub lookup_file {
 	my( $self, $filename, $group, $groupbase ) = @_;
-	print "SyncDiff::DB->new_transaction_id() - Starting\n";
+##	print "SyncDiff::DB->new_transaction_id() - Starting\n";
 
 	my %request = (
 		operation	=> 'lookup_file',
@@ -286,7 +289,7 @@ sub lookup_file {
 
 	my $response = $self->send_request( %request );
 
-	print Dumper $response;
+##	print Dumper $response;
 
 	return $response;
 } #end lookup_file()
@@ -414,8 +417,8 @@ sub add_file {
 
 	my %file_hash = $file->to_hash();
 
-	print "File hash:\n";
-	print Dumper \%file_hash;
+##	print "File hash:\n";
+##	print Dumper \%file_hash;
 
 	my %request = (
 		operation	=> 'add_file',
@@ -429,17 +432,17 @@ sub _add_file {
 	my( $self, $file ) = @_;
 	my $dbh = $self->dbh;
 
-	print "------------------------\n";
-	print "DB->_add_file()\n";
-	print "------------------------\n";
-	print Dumper $file;
-	print "------------------------\n";
+##	print "------------------------\n";
+##	print "DB->_add_file()\n";
+##	print "------------------------\n";
+##	print Dumper $file;
+##	print "------------------------\n";
 
 	my $file_obj = SyncDiff::File->new(dbref => $self );
 
 	$file_obj->from_hash( $file );
-	print Dumper \$file_obj;
-	print "^^^^^^^^^^^^^^^^^^^^^^^^\n";
+##	print Dumper \$file_obj;
+##	print "^^^^^^^^^^^^^^^^^^^^^^^^\n";
 
 	my $new_file_sth =  $dbh->prepare("INSERT INTO files (filepath, syncgroup, syncbase, filetype, inode_num, perms, uid, username, gid, groupname, size_bytes, mtime, extattr, checksum, last_transaction) VALUES( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )");
 
