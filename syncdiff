@@ -18,6 +18,8 @@ use SyncDiff::Scanner;
 use SyncDiff::DB;
 use SyncDiff::File;
 use SyncDiff::Scanner;
+use SyncDiff::Server;
+use SyncDiff::Client;
 
 # Debugging includes
 use Data::Dumper;
@@ -125,6 +127,24 @@ if( $run_only_scan ){
 	exit(0);
 } # end if( $run_only_scan )
 
+if( $run_as_server ){
+	my $server = SyncDiff::Server->new();
+	$server->run();
+	exit(0);
+}
+
+print Dumper $config->config;
+
+foreach $group_name ( keys $config->config->{groups} ){
+	print "Main client loop - group: ". $group_name ."\n";
+
+	foreach $base ( @{ $config->config->{groups}->{$group_name}->{patterns} } ){
+
+		my $client = SyncDiff::Client->new( config_options => $config->get_group_config( $group_name ), group => $group_name, groupbase => $base, groupbase_path => $config->get_truepath( $base ), dbref => $dbconnection );
+
+		$client->fork_and_connect();
+	} # end base foreach
+} # end group_name foreach
 
 #my $config = SyncDiff::Config->new();
 #
