@@ -212,6 +212,9 @@ sub process_request {
 	if( $request->{operation} eq "mark_deleted" ){
 		return $self->_mark_deleted( $request->{file} );
 	}
+	if( $request->{operation} eq "gethostbyname" ){
+		return $self->_gethostbyname( $request->{hostname} );
+	}
 
 } # end process_request()
 
@@ -663,6 +666,24 @@ sub update_last_seen_transaction {
 	my $update_transactions_seen = $dbh->prepare("replace into servers_seen (hostname, transactionid, group, timeadded) values ( ?, ?, ?, strftime('%s','now') )");
 	$update_transactions_seen->execute( $hostname, $transactionid, $group );
 } # end update_last_seen_transaction()
+
+sub gethostbyname {
+	my( $self, $hostname ) = @_;
+
+	my %request = (
+		operation	=> 'gethostbyname',
+		hostname	=> $hostname,
+		);
+
+	my $response = $self->send_request( %request );
+
+} # end gethostbyname
+
+sub _gethostbyname {
+	my( $self, $hostname ) = @_;
+
+	return inet_ntoa(inet_aton($hostname));
+} # end _gethostbyname()
 
 #no moose;
 __PACKAGE__->meta->make_immutable;
