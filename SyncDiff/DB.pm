@@ -209,6 +209,9 @@ sub process_request {
 	if( $request->{operation} eq "update_file" ){
 		return $self->_update_file( $request->{file} );
 	}
+	if( $request->{operation} eq "mark_deleted" ){
+		return $self->_mark_deleted( $request->{file} );
+	}
 
 } # end process_request()
 
@@ -535,7 +538,7 @@ sub _add_file {
 ##	print Dumper \$file_obj;
 ##	print "^^^^^^^^^^^^^^^^^^^^^^^^\n";
 
-	my $new_file_sth =  $dbh->prepare("INSERT INTO files (filepath, syncgroup, syncbase, filetype, inode_num, perms, uid, username, gid, groupname, size_bytes, mtime, extattr, checksum, last_transaction) VALUES( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )");
+	my $new_file_sth =  $dbh->prepare("INSERT INTO files (filepath, syncgroup, syncbase, filetype, inode_num, perms, uid, username, gid, groupname, size_bytes, mtime, extattr, checksum, last_transaction, deleted) VALUES( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0 )");
 
 	$new_file_sth->execute(
 		$file_obj->filepath,
@@ -558,6 +561,53 @@ sub _add_file {
 	return 0;
 } # end _add_file()
 
+sub mark_deleted {
+	my( $self, $file ) = @_;
+
+	my %file_hash = $file->to_hash();
+
+	my %request = (
+		operation	=> 'mark_deleted',
+		file		=> \%file_hash,
+		);
+
+	my $response = $self->send_request( %request );
+} # end mark_deleted()
+
+sub _mark_deleted {
+	my( $self, $file ) = @_;
+	my $dbh = $self->dbh;
+
+	my $file_obj = SyncDiff::File->new(dbref => $self );
+	$file_obj->from_hash( $file );
+
+##	print "Marking deleted:\n";
+##	print "\tlast transaction: ". $file_obj->last_transaction ."\n";
+##	print "\tFilepath: ". $file_obj->filepath ."\n";
+##	print "\tsyncgroup: ". $file_obj->syncgroup ."\n";
+##	print "\tsyncbase: ". $file_obj->syncbase ."\n";
+	
+	my $sql = "UPDATE files set last_transaction=?, deleted=1 WHERE filepath=? and syncgroup=? and syncbase=?";
+
+##	print "\tSQL: ". $sql ."\n";
+
+	my $mark_deleted_sth =  $dbh->prepare($sql);
+
+	$mark_deleted_sth->execute(
+		$file_obj->last_transaction,
+
+		$file_obj->filepath,
+		$file_obj->syncgroup,
+		$file_obj->syncbase
+		);
+
+	if ( $mark_deleted_sth->err ){
+		die "ERROR! return code: ". $mark_deleted_sth->err . " error msg: " . $mark_deleted_sth->errstr . "\n";
+	}
+
+	return 0;
+} # end _mark_deleted()
+
 sub update_file {
 	my( $self, $file ) = @_;
 
@@ -579,7 +629,7 @@ sub _update_file {
 
 	$file_obj->from_hash( $file );
 
-	my $new_file_sth =  $dbh->prepare("UPDATE files set filepath=?, syncgroup=?, syncbase=?, filetype=?, inode_num=?, perms=?, uid=?, username=?, gid=?, groupname=?, size_bytes=?, mtime=?, extattr=?, checksum=?, last_transaction=? WHERE filepath=? and syncgroup=? and syncbase=?");
+	my $new_file_sth =  $dbh->prepare("UPDATE files set filepath=?, syncgroup=?, syncbase=?, filetype=?, inode_num=?, perms=?, uid=?, username=?, gid=?, groupname=?, size_bytes=?, mtime=?, extattr=?, checksum=?, last_transaction=?, deleted=0 WHERE filepath=? and syncgroup=? and syncbase=?");
 
 	$new_file_sth->execute(
 		$file_obj->filepath,
