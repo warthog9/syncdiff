@@ -305,6 +305,9 @@ sub checksum_file {
 sub filepath {
 	my( $self ) = @_;
 
+	if( $self->path eq "./" ){
+		return $self->filename;
+	}
 	return File::Spec->catfile( $self->path, $self->filename );
 } # end filepath()
 
