@@ -119,6 +119,12 @@ has 'last_transaction' => (
 		isa	=> 'Str',
 		);
 
+has 'deleted' => (
+		is	=> 'rw',
+		isa	=> 'Str',
+		default => '0',
+		);
+
 #
 # End Local Variables
 #
@@ -342,6 +348,7 @@ sub to_hash {
 		extattr		=> $self->extattr,
 		checksum	=> $self->checksum,
 		last_transaction	=> $self->last_transaction,
+		deleted		=> $self->deleted,
 		);
 
 	return %file_hash;
@@ -378,6 +385,7 @@ sub from_hash {
 	$self->extattr( $file_hash->{extattr} );
 	$self->checksum( $file_hash->{checksum} );
 	$self->last_transaction( $file_hash->{last_transaction} );
+	$self->deleted( $file_hash->{deleted} ) if( defined $file_hash->{deleted} );
 } # end from_hash()
 
 #no moose;
