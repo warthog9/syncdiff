@@ -236,7 +236,20 @@ sub get_truepath {
 	}
 
 	return undef;
-}
+} # end get_truepath()
+
+sub get_group_config {
+	my( $self, $group ) = @_;
+
+	my %group_config = (
+		'ignore_mod'	=> $self->config->{ignore_mod},
+		'ignore_uid'	=> $self->config->{ignore_uid},
+		'ignore_gid'	=> $self->config->{ignore_gid}, 
+		);
+	$group_config{groups}->{$group} = $self->config->{groups}->{$group};
+
+	return \%group_config;
+} # end get_group_config()
 
 #no moose;
 __PACKAGE__->meta->make_immutable;
