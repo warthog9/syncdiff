@@ -192,6 +192,10 @@ sub process_request {
 		return $self->_lookup_file( $request->{filename}, $request->{group}, $request->{groupbase} );
 	}
 
+	if( $request->{operation} eq "lookup_filelist" ){
+		return $self->_lookup_filelist( $request->{group}, $request->{groupbase} );
+	}
+
 	if( $request->{operation} eq "getpwuid" ){
 		return $self->_getpwuid( $request->{uid} );
 	}
@@ -337,6 +341,74 @@ sub _lookup_file {
 
 	return \%return_hash;
 } # end _lookup_file()
+
+sub lookup_filelist {
+	my( $self, $group, $groupbase ) = @_;
+
+	my %request = (
+		operation	=> 'lookup_filelist',
+		group		=> $group,
+		groupbase	=> $groupbase,
+		);
+
+	my $response = $self->send_request( %request );
+
+##	print Dumper $response;
+
+	my @filelist;
+
+	foreach my $id ( sort keys %$response ){
+##		print "Hash ID: ". $id ."\n";
+
+		my $fileobj = SyncDiff::File->new( dbref => $self );
+		$fileobj->from_hash( $response->{$id} );
+
+#		my %filehash = $fileobj->to_hash();
+#
+#		push( @filelist, \%filehash );
+		push( @filelist, $fileobj );
+	}
+
+##	print Dumper \@filelist;
+
+	return \@filelist;
+} # end lookup_filelist()
+
+sub _lookup_filelist {
+	my( $self, $group, $groupbase ) = @_;
+	my $dbh = $self->dbh;
+
+	my $lookup_file = $dbh->prepare("SELECT * FROM files WHERE syncgroup=? and syncbase=? and deleted=0");
+	$lookup_file->execute( $group, $groupbase);
+
+	if ( $lookup_file->err ){
+#		die "ERROR! return code: ". $sth->err . " error msg: " . $sth->errstr . "\n";
+	}
+
+	my $row_ref = $lookup_file->fetchall_hashref('id');
+
+##	print "**** FILELIST\n";
+##	print Dumper $row_ref;
+
+	if( ( scalar ( keys %$row_ref ) ) == 0 ){
+		return 0;
+	}
+
+	my %filelist_arr;
+	my %return_hash;
+
+#	foreach my $id ( sort keys %$row_ref ){
+#		print "Hash ID: ". $id ."\n";
+#		my $fileobj = SyncDiff::File->new( dbref => $self );
+#
+#		$fileobj->parse_dbrow( $row_ref->{$id} );
+#
+#		%return_hash = $fileobj->to_hash();
+#	}
+
+	#return \%return_hash;
+	return $row_ref;
+} # end _lookup_filelist()
 
 sub getpwuid {
 	my( $self, $uid ) = @_;
