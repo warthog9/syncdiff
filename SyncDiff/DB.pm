@@ -143,6 +143,21 @@ sub recv_loop {
 ##		print "Reference check: ". ref( $response ) ."\n";
 ##		print Dumper $response;
 
+		my $ref_resp = ref( $response );
+
+		if(
+			! defined $ref_resp
+			||
+			$ref_resp eq "SCALAR"
+			||
+			$ref_resp eq ""
+		){
+			my %temp_resp = (
+				SCALAR	=> $response,
+			);
+			$response = \%temp_resp;
+		}
+
 ##		print "Why is this a dud:\n";
 ##		print Dumper $response;
 
@@ -242,6 +257,10 @@ sub send_request {
 
 	if( defined $response->{ZERO} ){
 		return 0;
+	}
+
+	if( defined $response->{SCALAR} ){
+		return $response->{SCALAR};
 	}
 
 	return $response;
