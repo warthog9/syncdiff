@@ -176,7 +176,7 @@ sub _process_request {
 		$response->{request_version} < 2
 	){
 		print "Primary protocol version 1 found\n";
-		$self->proto = SyncDiff::Protocol::v1->new( socket => $self->socket, version => $proto_to_use );
+		$self->proto = SyncDiff::Protocol::v1->new( socket => $self->socket, version => $response->{request_version} );
 	}
 } # end process_request()
 
