@@ -95,6 +95,41 @@ override 'run_child' => sub {
 	$self->recv_loop();
 }; # end run_child()
 
+#
+# Signal handling - mostly for SIGALRM to handle timeout events
+#
+
+#
+# SIGALRM is for dealing with timeouts
+#
+
+$SIG{ALRM} = sub {
+	# Timeout handling
+	#	Basically we want have the program
+	#	exit at this point as something
+	#	has gone hideously wrong.
+	#
+	#	It's possible in a future version we
+	#	might have it go quiet (in the client
+	#	side) and then re-try the connection.
+	#
+	#	The server side should pretty much just
+	#	hang-up.
+	exit(0);
+	die; 
+};
+
+#
+# Ridiculous globals
+#
+
+my $TIMEOUT = 300;
+
+#
+# Real Code beyond here
+#
+
+
 sub fork_and_connect {
 	my( $self ) = @_;
 
@@ -221,12 +256,19 @@ sub basic_send_request {
 
 	my $line = undef;
 
-	while( $line = <$socket> ){
-		if( defined $line  ){
-			chomp( $line );
-			last if( $line ne "" );
-		}
-	}
+	# attach a timeout to trying to listen to the
+	# socket in case things take forever and we
+	# should just give up and die
+	eval {
+		alarm($TIMEOUT);
+		while( $line = <$socket> ){
+			if( defined $line  ){
+				chomp( $line );
+				last if( $line ne "" );
+			}
+		} # end while loop waiting on socket to return
+		return 0;
+	}; # end eval / timeout 
 
 	chomp( $line );
 
