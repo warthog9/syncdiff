@@ -92,6 +92,12 @@ sub send_request {
 	return $response;
 } # end send_request()
 
+sub getVersion {
+	my( $self ) = @_;
+	
+	return "1.0"
+}
+
 #no moose;
 __PACKAGE__->meta->make_immutable;
 #__PACKAGE__->meta->make_immutable(inline_constructor => 0,);
