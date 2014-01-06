@@ -13,7 +13,6 @@ extends qw(SyncDiff::Forkable);
 
 use SyncDiff::File;
 use SyncDiff::Util;
-use SyncDiff::Protocol::v1;
 
 #
 # Other Includes
@@ -23,8 +22,6 @@ use JSON::XS;
 use MIME::Base64;
 use IO::Socket;
 use IO::Handle;
-
-use Scalar::Util qw(looks_like_number);
 
 #
 # Debugging
@@ -70,15 +67,10 @@ has 'groupbase_path' => (
 
 has 'socket' => (
 		is	=> 'rw',
-		isa	=> 'IO::Socket::INET',
-		);
-
-has 'protocol_version' => (
-		is	=> 'rw',
 		isa	=> 'Str',
 		);
 
-has 'protocol_object' => (
+has 'auth_token' => (
 		is	=> 'rw',
 		isa	=> 'Object',
 		);
@@ -189,9 +181,6 @@ sub fork_and_connect {
 			print "Could not create socket: $!\n";
 			next;
 		} # end skipping if the socket is broken
-
-		$self->socket( $sock );
-
 		print $sock "Hello World!\n";
 
 		#
@@ -211,7 +200,6 @@ sub fork_and_connect {
 		my $protocol_obj = $self->protocol_object();
 
 		$protocol_obj->client_run(); 
-
 
 		close( $sock );
 	} # end foreach $host

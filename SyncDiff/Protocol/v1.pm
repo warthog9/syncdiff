@@ -133,7 +133,13 @@ sub shareCurrentLogPosition {
 	print "Log position is:\n";
 	print Dumper $logPosition
 
+}
+
 	
+sub getVersion {
+	my( $self ) = @_;
+	
+	return "1.0"
 }
 
 #no moose;
