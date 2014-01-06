@@ -215,6 +215,9 @@ sub process_request {
 	if( $request->{operation} eq "gethostbyname" ){
 		return $self->_gethostbyname( $request->{hostname} );
 	}
+	if( $request->{operation} eq "current_log_position" ){
+		return $self->_current_log_position();
+	}
 
 } # end process_request()
 
@@ -684,6 +687,57 @@ sub _gethostbyname {
 
 	return inet_ntoa(inet_aton($hostname));
 } # end _gethostbyname()
+
+sub current_log_position {
+	my( $self ) = @_;
+
+	my %request = (
+		operation	=> 'current_log_position',
+		);
+
+	print "Pushing request for current log position\n";
+
+	my $response = $self->send_request( %request );
+
+	print "Got response and it is...\n";
+	print Dumper $response;
+	return $response;
+} # end current_log_position()
+
+sub _current_log_position {
+	my( $self ) = @_;
+	my $dbh = $self->dbh;
+
+	print "Got request for current log position\n";
+
+	my $get_current_transaction_id = $dbh->prepare("select id, transactionid from transactions order by id desc limit 1;");
+	$get_current_transaction_id->execute();
+
+	if ( $get_current_transaction_id->err ){
+		die "ERROR! return code: ". $get_current_transaction_id->err . " error msg: " . $get_current_transaction_id->errstr . "\n";
+	}
+
+	my $row_ref = $get_current_transaction_id->fetchall_hashref('id');
+	print "Current Log position stuff:\n";
+	print Dumper $row_ref;
+
+	print "How many keys *ARE* there... ". ( scalar ( keys %{$row_ref} ) ) ."\n";
+	if(
+		( scalar ( keys %{$row_ref} ) ) == 0
+		||
+		( scalar ( keys %{$row_ref} ) ) > 1
+	){
+		return 0;
+	}
+
+	my $id;
+
+	foreach $id ( sort keys %{$row_ref} ){
+		print "Id is: $id\n";
+		print "Hash is: ". $row_ref->{ $id }->{'transactionid'} ."\n";
+		return $row_ref->{ $id }->{'transactionid'};
+	}
+} # end _current_log_position()
 
 #no moose;
 __PACKAGE__->meta->make_immutable;
