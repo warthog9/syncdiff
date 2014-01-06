@@ -5,7 +5,7 @@ $SyncDiff::Server::VERSION = '0.01';
 
 use Moose;
 
-extends qw(SyncDiff::Forkable);
+extends 'SyncDiff::Forkable', 'SyncDiff::SenderReciever';
 
 #
 # Needed to communicate with other modules
@@ -70,83 +70,6 @@ override 'run_child' => sub {
 
 	$self->recv_loop();
 }; # end run_child()
-
-sub recv_loop {
-	my ( $self ) = @_;
-
-	my $sock = new IO::Socket::INET (
-				LocalPort => '7070',
-				Proto => 'tcp',
-				Listen => 1,
-				Reuse => 1,
-				);
-	die "Could not create socket: $!\n" unless $sock;
-
-	while( my $new_sock = $sock->accept() ){
-		my $child;
-
-		if( ( $child = fork() ) == 0 ){
-			# child process
-			print Dumper $new_sock;
-			$self->socket( $new_sock );
-			$self->process_request();
-		}
-	} # end while( $new_sock = $sock->accept() ) loop
-} # end recv_loop()
-
-sub process_request {
-	my( $self ) = @_;
-
-	my $line = undef;
-	my $socket = $self->socket;
-
-	print Dumper $socket;
-
-	if( ! defined $socket ){
-		return;
-	}
-
-	while( $line = <$socket> ){
-		chomp($line);
-
-		print "Server got:\n";
-		print Dumper $line;
-
-		my $response = $self->_process_request( $line );
-
-		if(
-			$response eq "0"
-		){
-			my %temp_resp = (
-				ZERO	=> "0",
-			);
-			$response = \%temp_resp;
-		}
-
-##		print "Reference check: ". ref( $response ) ."\n";
-##		print Dumper $response;
-
-		my $ref_resp = ref( \$response );
-
-		if(
-			! defined $ref_resp
-			||
-			$ref_resp eq "SCALAR"
-			||
-			$ref_resp eq ""
-		){
-			my %temp_resp = (
-				SCALAR	=> $response,
-			);
-			$response = \%temp_resp;
-		}
-
-		my $json_response = encode_json( $response );
-
-		print $socket $json_response ."\n";
-	}
-} # end recv_loop()
-
 
 sub _process_request {
 	my( $self, $recv_line ) = @_;
