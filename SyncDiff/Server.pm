@@ -13,6 +13,7 @@ extends qw(SyncDiff::Forkable);
 
 use SyncDiff::File;
 use SyncDiff::Util;
+use SyncDiff::Protocol::v1;
 
 #
 # Other Includes
@@ -38,7 +39,7 @@ use Data::Dumper;
 
 has 'socket' => (
 		is	=> 'rw',
-		isa	=> 'Str',
+		isa	=> 'IO::Socket::INET',
 		);
 
 has 'auth_token' => (
@@ -87,15 +88,17 @@ sub recv_loop {
 		if( ( $child = fork() ) == 0 ){
 			# child process
 			print Dumper $new_sock;
-			$self->process_request( $new_sock );
+			$self->socket( $new_sock );
+			$self->process_request();
 		}
 	} # end while( $new_sock = $sock->accept() ) loop
 } # end recv_loop()
 
 sub process_request {
-	my( $self, $socket ) = @_;
+	my( $self ) = @_;
 
 	my $line = undef;
+	my $socket = $self->socket;
 
 	print Dumper $socket;
 
@@ -176,7 +179,8 @@ sub _process_request {
 		$response->{request_version} < 2
 	){
 		print "Primary protocol version 1 found\n";
-		$self->proto = SyncDiff::Protocol::v1->new( socket => $self->socket, version => $response->{request_version} );
+		$self->proto( SyncDiff::Protocol::v1->new( socket => $self->socket, version => $response->{request_version} ) );
+		return $self->proto->getVersion();
 	}
 } # end process_request()
 
