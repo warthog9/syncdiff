@@ -80,7 +80,7 @@ has 'protocol_version' => (
 
 has 'protocol_object' => (
 		is	=> 'rw',
-		isa	=> 'Str',
+		isa	=> 'Object',
 		);
 
 # End variables
@@ -193,7 +193,26 @@ sub fork_and_connect {
 		$self->socket( $sock );
 
 		print $sock "Hello World!\n";
+
+		#
+		# Ok, here we get the proper protocol all worked out
+		#
 		$self->request_protocol_versions();
+
+		#
+		# Next we should let the protocol object take over
+		# and run with the connection.  It's not our job
+		# (here) to tell it what / how to do things.  If we 
+		# do we run the risk of making future protocol changes
+		# complex or a major issue.  Pass it on and let go
+		#
+
+		print "Protocol should be setup\n";
+		my $protocol_obj = $self->protocol_object();
+
+		$protocol_obj->client_run(); 
+
+
 		close( $sock );
 	} # end foreach $host
 } # end fork_and_connect()
@@ -239,10 +258,12 @@ sub request_protocol_versions {
 		&&
 		$proto_to_use < 2.0
 	){
-		$protocol_obj = SyncDiff::Protocol::v1->new( socket => $self->socket, version => $proto_to_use );
+		$protocol_obj = SyncDiff::Protocol::v1->new( socket => $self->socket, version => $proto_to_use, dbref => $self->dbref );
 	}
 
 	$protocol_obj->setup();
+
+	$self->protocol_object( $protocol_obj );
 } # end request_protocol_version()
 
 sub basic_send_request {
