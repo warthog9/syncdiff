@@ -212,7 +212,6 @@ sub fork_and_connect {
 
 		$protocol_obj->client_run(); 
 
-
 		close( $sock );
 	} # end foreach $host
 } # end fork_and_connect()
