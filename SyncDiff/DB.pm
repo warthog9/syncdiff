@@ -236,7 +236,40 @@ sub process_request {
 		return $self->_current_log_position();
 	}
 
+	if( $request->{operation} eq "clean_stop" ){
+		return $self->_clean_stop();
+	}
+
 } # end process_request()
+
+sub clean_stop {
+	my( $self ) = @_;
+
+	my %request = (
+		operation	=> 'clean_stop',
+		);
+
+	return $self->send_request( %request );
+}
+
+sub _clean_stop {
+	my( $self ) = @_;
+	my $dbh = $self->dbh;
+
+	$dbh->disconnect();
+
+	my $PARENT_IPC = $self->PARENT_IPC;
+
+	my %temp_resp = (
+		ZERO	=> "0",
+	);
+	my $response = \%temp_resp;
+
+	my $json_response = encode_json( $response );
+	print $PARENT_IPC $json_response ."\n";
+
+	exit(0);
+}
 
 sub create_database {
 	my( $self ) = @_;
