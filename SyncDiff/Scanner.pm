@@ -89,6 +89,7 @@ override 'run_child' => sub {
 	print "chrooted\n";
 
 	$self->scan();
+
 }; # end run_child();
 
 sub full_scan {
@@ -120,7 +121,20 @@ sub full_scan {
 
 	my $kid;
 
+	foreach my $group_name (keys %running_scanners) {
+		print "Group Wait: $group_name\n";
+		foreach my $base_path ( keys %{ $running_scanners{$group_name} } ){
+			print "\tBase Path: $base_path\n";
+			my $pid = $running_scanners{$group_name}{$base_path}->pid();
+			print "\t\tPid: $pid\n";
+			$kid = waitpid( $pid, 0); 
+		}
+	}
+
+	$dbconnection->clean_stop();
+
 	do {
+
 		$kid = waitpid(-1,0);
 	} while $kid > 0;
 
@@ -156,8 +170,8 @@ sub scan {
 
 	my $filelist = $self->dbref->lookup_filelist( $self->group, $self->groupbase );
 
-	print "Object...\n";
-	print Dumper $filelist;
+#	print "Object...\n";
+#	print Dumper $filelist;
 
 	foreach my $fileobj ( @{ $filelist } ){
 		if( ! -e $fileobj->filepath ){
