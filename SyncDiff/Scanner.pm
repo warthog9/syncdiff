@@ -175,9 +175,9 @@ sub find_wanted {
 
 	my $lookup_file = $self->dbref->lookup_file( $found_file, $self->group, $self->groupbase );
 
-	print "*** lookup file\n";
-	print Dumper $lookup_file;
-	print "^^^^^^^^^^^^^^^\n";
+#	print "*** lookup file\n";
+#	print Dumper $lookup_file;
+#	print "^^^^^^^^^^^^^^^\n";
 
 	if( ! defined $self->scan_count ){
 		$self->scan_count(1);
