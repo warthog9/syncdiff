@@ -7,6 +7,7 @@ extends qw(SyncDiff::Forkable);
 
 # SyncDiff parts I need
 
+use SyncDiff::Config;
 use SyncDiff::File;
 use SyncDiff::DB;
 use SyncDiff::Util;
@@ -89,6 +90,42 @@ override 'run_child' => sub {
 
 	$self->scan();
 }; # end run_child();
+
+sub full_scan {
+	my ( $self, $config, $dbconnection ) = @_;
+
+	my %running_scanners = ();
+
+	foreach my $group_name ( keys $config->config->{groups} ){
+		print "run only scan group: ". $group_name ."\n";
+		
+		my $scanner = undef;
+
+		foreach my $base_path ( @{ $config->config->{groups}->{$group_name}->{patterns} } ){
+			#print "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n";
+			#print "\tBase Path: ". $base_path ."\n";
+
+			#print "\ttruepath: ". $config->get_truepath( $base_path ) ."\n";
+			$scanner = SyncDiff::Scanner->new( dbref => $dbconnection, group => $group_name, groupbase => $base_path );
+			$scanner->fork_and_scan();
+
+			$running_scanners{$group_name}{$base_path} = $scanner;
+			
+			#print Dumper $scanner;
+
+			#$scanner->create_transaction_id();
+			#print "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n";
+		} # end foreach $base_path
+	} # end foreach $group_name
+
+	my $kid;
+
+	do {
+		$kid = waitpid(-1,0);
+	} while $kid > 0;
+
+	return;
+} # end full_scan()
 
 sub scan {
 	my( $self ) = @_;

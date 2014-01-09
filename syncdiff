@@ -96,34 +96,7 @@ $dbconnection->file( "psync.sqlite" );
 $dbconnection->connect_and_fork();
 
 if( $run_only_scan ){
-	my %running_scanners = ();
-	#print Dumper \$config->config->{groups};
-	foreach $group_name ( keys $config->config->{groups} ){
-		print "run only scan group: ". $group_name ."\n";
-		
-		my $scanner = undef;
-
-		foreach $base_path ( @{ $config->config->{groups}->{$group_name}->{patterns} } ){
-			print "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n";
-			#print "\tBase Path: ". $base_path ."\n";
-
-			#print "\ttruepath: ". $config->get_truepath( $base_path ) ."\n";
-			$scanner = SyncDiff::Scanner->new( dbref => $dbconnection, group => $group_name, groupbase => $base_path );
-			$scanner->fork_and_scan();
-
-			$running_scanner{$group_name}{$base_path} = $scanner;
-			
-			#print Dumper $scanner;
-
-			#$scanner->create_transaction_id();
-			print "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n";
-		} # end foreach $base_path
-	} # end foreach $group_name
-
-	do {
-		my $kid = waitpid(-1,0);
-	} while $kid > 0;
-
+	SyncDiff::Scanner->full_scan( $config, $dbconnection );
 	exit(0);
 } # end if( $run_only_scan )
 
@@ -133,7 +106,7 @@ if( $run_as_server ){
 	exit(0);
 }
 
-print Dumper $config->config;
+#print Dumper $config->config;
 
 foreach $group_name ( keys $config->config->{groups} ){
 	print "Main client loop - group: ". $group_name ."\n";
