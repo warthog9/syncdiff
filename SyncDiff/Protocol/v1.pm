@@ -76,8 +76,22 @@ sub client_run {
 
 	print "Client is now running with Protocol major version 1\n";
 
-	my $remote_current_log_position = $self->shareCurrentLogPosition();
+	my $remote_current_log_position = $self->getCurrentLogPosition();
 }
+
+sub getCurrentLogPosition {
+	my( $self ) = @_;
+
+	my %request = (
+		'v1_operation'	=>	'getLogPosition'
+	);
+
+	my $response = $self->send_request( %request );
+
+	print "Found Log Position response\n";
+	print Dumper $response;
+
+} # end getCurrentLogPosition()
 
 sub shareCurrentLogPosition {
 	my( $self ) = @_;
@@ -87,14 +101,13 @@ sub shareCurrentLogPosition {
 	print "Log position is:\n";
 	print Dumper $logPosition
 
-}
-
+} # end shareCurrentLogPosition()
 	
 sub getVersion {
 	my( $self ) = @_;
 	
 	return "1.0"
-}
+} # end getVersion()
 
 #
 # This is the main routine for the server side of things
