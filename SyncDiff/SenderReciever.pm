@@ -149,6 +149,10 @@ sub send_request {
 		return 0;
 	}; # end eval / timeout 
 
+	if( ! defined $line ){
+		return -1;
+	}
+
 	chomp( $line );
 
 	if( $line eq "0" ){
