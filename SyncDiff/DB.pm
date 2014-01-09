@@ -20,6 +20,8 @@ use DBD::SQLite;
 use IO::Socket;
 use JSON::XS;
 use MIME::Base64;
+use Sys::Hostname;
+use Digest::SHA qw(sha256_hex);
 
 #
 # Debugging
@@ -84,6 +86,21 @@ sub connect {
 			);
 
 	$self->_write_dbh( $dbh );
+
+
+	#
+	# Check if this is a new database, if so lets go ahead and set
+	# it up and get it kicked off with an initial log position
+	#
+
+	my $sth = $dbh->table_info("", "%", 'transactions', "TABLE");
+	if ( ! $sth->fetch) {
+		# doesn't exist
+		print "*** New Database, initializing and doing a file scan\n";
+
+		$self->create_database();
+#		SyncDiff::Scanner->full_scan( $self->config, $self );
+	}
 
 	return;
 
@@ -227,7 +244,11 @@ sub create_database {
 
 	$dbh->do("CREATE TABLE if not exists files (id INTEGER PRIMARY KEY AUTOINCREMENT, filepath TEXT, syncgroup TEXT, syncbase TEXT, filetype TEXT, inode_num INTEGER, perms INTEGER, uid INTEGER, username TEXT, gid INTEGER, groupname TEXT, size_bytes INTEGER, mtime INTEGER, extattr TEXT, checksum TEXT, deletestatus TEXT, last_transaction TEXT)");
 
-	$dbh->do("CREATE TABLE if not exists transactions (id INTEGER PRIMARY KEY AUTOINCREMENT, transactionid TEXT, group TEXT, timeadded INTEGER)");
+	$dbh->do("CREATE TABLE if not exists transactions (id INTEGER PRIMARY KEY AUTOINCREMENT, transactionid TEXT, 'group' TEXT, timeadded INTEGER)");
+
+	my $transaction_id = sha256_hex( hostname() ."-". $$ ."-". time() );
+
+	$self->_new_transaction_id( $transaction_id );
 } # end create_database()
 
 sub send_request {
