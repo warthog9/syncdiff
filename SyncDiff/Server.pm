@@ -52,6 +52,11 @@ has 'proto' => (
 		isa	=> 'Object',
 		);
 
+has 'dbref' => (
+		is	=> 'rw',
+		isa	=> 'Object',
+		required => 1,
+		);
 
 # End variables
 
@@ -102,9 +107,11 @@ sub _process_request {
 		$response->{request_version} < 2
 	){
 		print "Primary protocol version 1 found\n";
-		$self->proto( SyncDiff::Protocol::v1->new( socket => $self->socket, version => $response->{request_version} ) );
+		$self->proto( SyncDiff::Protocol::v1->new( socket => $self->socket, version => $response->{request_version}, dbref => $self->dbref ) );
 		return $self->proto->getVersion();
 	}
+
+	return $self->proto->server_process_request( $response );
 } # end process_request()
 
 #no moose;

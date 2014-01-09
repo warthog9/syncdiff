@@ -96,6 +96,31 @@ sub getVersion {
 	return "1.0"
 }
 
+#
+# This is the main routine for the server side of things
+# shouldn't be *TOO* dissimilar to the client, but yeah
+#
+
+sub server_process_request {
+	my( $self, $response ) = @_;
+
+	print "Server version 1 got response: \n";
+	print Dumper $response;
+
+	if( ! exists( $response->{v1_operation} ) ){
+		return;
+	}
+
+	if( $response->{v1_operation} eq "getLogPosition" ){
+		print "DBref:\n";
+		print Dumper $self->dbref;
+		my $logPosition = $self->dbref->current_log_position();
+		print "Found log position on Server:\n";
+		print Dumper $logPosition;
+		return $logPosition;
+	}
+}
+
 #no moose;
 __PACKAGE__->meta->make_immutable;
 #__PACKAGE__->meta->make_immutable(inline_constructor => 0,);
