@@ -797,7 +797,7 @@ sub set_remote_log_position {
 	my( $self, $hostname, $group, $log_position ) = @_;
 
 	my %request = (
-		operation	=> 'set_log_position',
+		operation	=> 'set_remote_log_position',
 		hostname	=> $hostname,
 		group		=> $group,
 		log_position	=> $log_position,
@@ -812,8 +812,13 @@ sub _set_remote_log_position {
 	my( $self, $hostname, $group, $transactionid ) = @_;
 	my $dbh = $self->dbh;
 
-	my $update_transactions_seen = $dbh->prepare("replace into servers_seen (hostname, transactionid, group, timeadded) values ( ?, ?, ?, strftime('%s','now') )");
-	$update_transactions_seen->execute( $hostname, $transactionid, $group );
+	my $sth = $dbh->prepare("replace into servers_seen (hostname, transactionid, group, timeadded) values ( ?, ?, ?, strftime('%s','now') )");
+	$sth->execute( $hostname, $transactionid, $group );
+
+	if ( $sth->err ){
+		die "ERROR! return code: ". $sth->err . " error msg: " . $sth->errstr . "\n";
+	}
+
 
 	return 0;
 } # end _set_remote_log_position()
@@ -822,7 +827,7 @@ sub get_remote_log_position {
 	my( $self, $hostname, $group ) = @_;
 
 	my %request = (
-		operation	=> 'get_log_position',
+		operation	=> 'get_remote_log_position',
 		hostname	=> $hostname,
 		group		=> $group
 		);
