@@ -34,6 +34,18 @@ has 'version' => (
 		required => 1,
 		);
 
+has 'hostname' => (
+		is	=> 'rw',
+		isa	=> 'Str',
+		required => 1,
+		);
+
+has 'group' => (
+		is	=> 'rw',
+		isa	=> 'Str',
+		required => 1,
+		);
+
 has 'dbref' => (
 		is	=> 'rw',
 		isa	=> 'Object',

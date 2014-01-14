@@ -197,7 +197,7 @@ sub fork_and_connect {
 		#
 		# Ok, here we get the proper protocol all worked out
 		#
-		$self->request_protocol_versions();
+		$self->request_protocol_versions( $host );
 
 		#
 		# Next we should let the protocol object take over
@@ -217,7 +217,7 @@ sub fork_and_connect {
 } # end fork_and_connect()
 
 sub request_protocol_versions {
-	my( $self ) = @_;
+	my( $self, $host ) = @_;
 
 	my %request = (
 		'operation'	=> 'request_protocol_versions',
@@ -257,7 +257,7 @@ sub request_protocol_versions {
 		&&
 		$proto_to_use < 2.0
 	){
-		$protocol_obj = SyncDiff::Protocol::v1->new( socket => $self->socket, version => $proto_to_use, dbref => $self->dbref );
+		$protocol_obj = SyncDiff::Protocol::v1->new( socket => $self->socket, version => $proto_to_use, dbref => $self->dbref, group => $self->group, hostname => $host );
 	}
 
 	$protocol_obj->setup();
