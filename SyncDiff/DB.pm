@@ -241,6 +241,9 @@ sub process_request {
 	if( $request->{operation} eq "get_remote_log_position" ){
 		return $self->_get_remote_log_position( $request->{hostname}, $request->{group} );
 	}
+	if( $request->{operation} eq "getlocalhostname" ){
+		return $self->_getlocalhostname();
+	}
 
 	if( $request->{operation} eq "clean_stop" ){
 		return $self->_clean_stop();
@@ -723,6 +726,23 @@ sub _update_file {
 
 	return 0;
 } # end _update_file()
+
+sub getlocalhostname {
+	my( $self ) = @_;
+
+
+	my %request = (
+		operation	=> 'getlocalhostname',
+		);
+
+	my $response = $self->send_request( %request );
+} # end getlocalhostname()
+
+sub _getlocalhostname {
+	my( $self ) = @_;
+
+	return hostname();
+}
 
 sub gethostbyname {
 	my( $self, $hostname ) = @_;
