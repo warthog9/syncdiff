@@ -812,7 +812,7 @@ sub _set_remote_log_position {
 	my( $self, $hostname, $group, $transactionid ) = @_;
 	my $dbh = $self->dbh;
 
-	my $sth = $dbh->prepare("replace into servers_seen (hostname, transactionid, group, timeadded) values ( ?, ?, ?, strftime('%s','now') )");
+	my $sth = $dbh->prepare("replace into servers_seen (hostname, transactionid, 'group', timeadded) values ( ?, ?, ?, strftime('%s','now') )");
 	$sth->execute( $hostname, $transactionid, $group );
 
 	if ( $sth->err ){
