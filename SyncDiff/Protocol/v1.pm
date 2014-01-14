@@ -85,11 +85,26 @@ sub setup {
 
 sub client_run {
 	my( $self ) = @_;
+	my $dbref = $self->dbref;
 
 	print "Client is now running with Protocol major version 1\n";
 
 	my $remote_current_log_position = $self->getCurrentLogPosition();
-}
+	my $remote_previous_log_position = $dbref->get_remote_log_position( $self->hostname, $self->group );
+
+	print "Current log position |". $remote_current_log_position ."|\n";
+	print "Previous log position |". $remote_previous_log_position ."|\n";
+
+	if( $remote_current_log_position ne $remote_previous_log_position ){
+		print "Updates were found!\n";
+
+		print "Going to save this out as: ". $self->hostname ." | ". $self->group ." | ". $remote_current_log_position ."\n";
+		$dbref->set_remote_log_position( $self->hostname, $self->group, $remote_current_log_position );
+	} else {
+		print "No updates found\n";
+	}
+} # end client_run()
+
 
 sub getCurrentLogPosition {
 	my( $self ) = @_;
@@ -103,6 +118,7 @@ sub getCurrentLogPosition {
 	print "Found Log Position response\n";
 	print Dumper $response;
 
+	return $response;
 } # end getCurrentLogPosition()
 
 sub shareCurrentLogPosition {
