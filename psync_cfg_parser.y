@@ -107,6 +107,19 @@ sub set_key {
 		print "*** Multiple keys found for group '". $curgroup ."' - last one wins!  You are warned. ***\n";
 	}
 
+	if(
+		$key =~ /^\//
+		&& 
+		-e $key
+	){
+		local $/;
+		open(FILE, $key) or die "Can't read file '$key' [$!]\n";  
+		$key = <FILE>; 
+		close (FILE);  
+	}
+
+	print "Key is: $key\n";
+
 	if( length($key) < 32 ){
 		print "*** WARNING ***\n";
 		print "\tKey for group:". $curgroup ." is less than 32 charaters.  Security is at risk\n";
