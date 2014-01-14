@@ -235,6 +235,12 @@ sub process_request {
 	if( $request->{operation} eq "current_log_position" ){
 		return $self->_current_log_position();
 	}
+	if( $request->{operation} eq "set_remote_log_position" ){
+		return $self->_set_remote_log_position( $request->{hostname}, $request->{group}, $request->{log_position} );
+	}
+	if( $request->{operation} eq "get_remote_log_position" ){
+		return $self->_set_remote_log_position( $request->{hostname}, $request->{group} );
+	}
 
 	if( $request->{operation} eq "clean_stop" ){
 		return $self->_clean_stop();
@@ -278,6 +284,8 @@ sub create_database {
 	$dbh->do("CREATE TABLE if not exists files (id INTEGER PRIMARY KEY AUTOINCREMENT, filepath TEXT, syncgroup TEXT, syncbase TEXT, filetype TEXT, inode_num INTEGER, perms INTEGER, uid INTEGER, username TEXT, gid INTEGER, groupname TEXT, size_bytes INTEGER, mtime INTEGER, extattr TEXT, checksum TEXT, deleted INTEGER, last_transaction TEXT)");
 
 	$dbh->do("CREATE TABLE if not exists transactions (id INTEGER PRIMARY KEY AUTOINCREMENT, transactionid TEXT, 'group' TEXT, timeadded INTEGER)");
+
+	$dbh->do("CREATE TABLE servers_seen (id INTEGER PRIMARY KEY AUTOINCREMENT, hostname TEXT unique, transactionid TEXT, 'group' TEXT, timeadded INTEGER)");
 
 	my $transaction_id = sha256_hex( hostname() ."-". $$ ."-". time() );
 
@@ -716,14 +724,6 @@ sub _update_file {
 	return 0;
 } # end _update_file()
 
-sub update_last_seen_transaction {
-	my( $self, $hostname, $group, $transactionid ) = @_;
-	my $dbh = $self->dbh;
-	
-	my $update_transactions_seen = $dbh->prepare("replace into servers_seen (hostname, transactionid, group, timeadded) values ( ?, ?, ?, strftime('%s','now') )");
-	$update_transactions_seen->execute( $hostname, $transactionid, $group );
-} # end update_last_seen_transaction()
-
 sub gethostbyname {
 	my( $self, $hostname ) = @_;
 
@@ -792,6 +792,79 @@ sub _current_log_position {
 		return $row_ref->{ $id }->{'transactionid'};
 	}
 } # end _current_log_position()
+
+sub set_remote_log_position {
+	my( $self, $hostname, $group, $log_position ) = @_;
+
+	my %request = (
+		operation	=> 'set_log_position',
+		hostname	=> $hostname,
+		group		=> $group,
+		log_position	=> $log_position,
+		);
+
+	my $response = $self->send_request( %request );
+
+	return $response;
+} # end set_remote_log_position()
+
+sub _set_remote_log_position {
+	my( $self, $hostname, $group, $transactionid ) = @_;
+	my $dbh = $self->dbh;
+
+	my $update_transactions_seen = $dbh->prepare("replace into servers_seen (hostname, transactionid, group, timeadded) values ( ?, ?, ?, strftime('%s','now') )");
+	$update_transactions_seen->execute( $hostname, $transactionid, $group );
+
+	return 0;
+} # end _set_remote_log_position()
+
+sub get_remote_log_position {
+	my( $self, $hostname, $group ) = @_;
+
+	my %request = (
+		operation	=> 'get_log_position',
+		hostname	=> $hostname,
+		group		=> $group
+		);
+
+	my $response = $self->send_request( %request );
+
+	return $response;
+} # end get_remote_log_position()
+
+sub _get_remote_log_position {
+	my( $self, $hostname, $group ) = @_;
+	my $dbh = $self->dbh;
+
+	my $sth = $dbh->prepare("SELECT transactionid FROM servers_seen WHERE hostname=? AND 'group'=? order by id desc limit 1;");
+	$sth->execute($hostname, $group);
+
+	if ( $sth->err ){
+		die "ERROR! return code: ". $sth->err . " error msg: " . $sth->errstr . "\n";
+	}
+
+	my $row_ref = $sth->fetchall_hashref('id');
+	print "Current Log position stuff:\n";
+	print Dumper $row_ref;
+
+	print "How many keys *ARE* there... ". ( scalar ( keys %{$row_ref} ) ) ."\n";
+	if(
+		( scalar ( keys %{$row_ref} ) ) == 0
+		||
+		( scalar ( keys %{$row_ref} ) ) > 1
+	){
+		return 0;
+	}
+
+	my $id;
+
+	foreach $id ( sort keys %{$row_ref} ){
+		print "Id is: $id\n";
+		print "Hash is: ". $row_ref->{ $id }->{'transactionid'} ."\n";
+		return $row_ref->{ $id }->{'transactionid'};
+	}
+
+} # end _get_remote_log_position()
 
 #no moose;
 __PACKAGE__->meta->make_immutable;
