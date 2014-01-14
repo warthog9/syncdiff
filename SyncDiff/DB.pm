@@ -239,7 +239,7 @@ sub process_request {
 		return $self->_set_remote_log_position( $request->{hostname}, $request->{group}, $request->{log_position} );
 	}
 	if( $request->{operation} eq "get_remote_log_position" ){
-		return $self->_set_remote_log_position( $request->{hostname}, $request->{group} );
+		return $self->_get_remote_log_position( $request->{hostname}, $request->{group} );
 	}
 
 	if( $request->{operation} eq "clean_stop" ){
@@ -812,7 +812,7 @@ sub _set_remote_log_position {
 	my( $self, $hostname, $group, $transactionid ) = @_;
 	my $dbh = $self->dbh;
 
-	my $sth = $dbh->prepare("replace into servers_seen (hostname, transactionid, 'group', timeadded) values ( ?, ?, ?, strftime('%s','now') )");
+	my $sth = $dbh->prepare("replace into servers_seen (hostname, transactionid, `group`, timeadded) values ( ?, ?, ?, strftime('%s','now') )");
 	$sth->execute( $hostname, $transactionid, $group );
 
 	if ( $sth->err ){
@@ -841,7 +841,11 @@ sub _get_remote_log_position {
 	my( $self, $hostname, $group ) = @_;
 	my $dbh = $self->dbh;
 
-	my $sth = $dbh->prepare("SELECT transactionid FROM servers_seen WHERE hostname=? AND 'group'=? order by id desc limit 1;");
+	print "Hostname: |$hostname| | Group: |$group|\n";
+
+	my $sql = "SELECT id, transactionid FROM servers_seen WHERE hostname=? AND `group`=? order by id desc limit 1;";
+	print "Sql: $sql\n";
+	my $sth = $dbh->prepare($sql);
 	$sth->execute($hostname, $group);
 
 	if ( $sth->err ){
