@@ -11,6 +11,7 @@ extends qw(SyncDiff::Forkable);
 
 use SyncDiff::File;
 use SyncDiff::Util;
+use SyncDiff::Config;
 
 #
 # Needed for dealing with DB stuff
@@ -44,6 +45,12 @@ has 'dbh' => (
 		is	=> 'ro',
 		isa	=> 'DBI::db',
 		writer	=> '_write_dbh',
+		);
+
+has 'config' => (
+		is	=> 'rw',
+		isa	=> 'SyncDiff::Config',
+		required => 1,
 		);
 
 # End variables
@@ -202,7 +209,7 @@ sub process_request {
 ##	print "SyncDiff::DB->process_request() - Operation: |". $request->{operation} ."|\n";
 
 	if( $request->{operation} eq "new_transaction_id" ){
-		return $self->_new_transaction_id( $request->{transaction_id} );
+		return $self->_new_transaction_id( $request->{group}, $request->{transaction_id} );
 	}
 
 	if( $request->{operation} eq "lookup_file" ){
@@ -295,7 +302,11 @@ sub create_database {
 
 	my $transaction_id = sha256_hex( hostname() ."-". $$ ."-". time() );
 
-	$self->_new_transaction_id( $transaction_id );
+	print Dumper $self->config->config;
+	foreach my $group ( sort keys $self->config->config->{groups} ){
+		print "Group: $group\n";
+		$self->_new_transaction_id( $group, $transaction_id );
+	}
 } # end create_database()
 
 sub send_request {
@@ -348,12 +359,13 @@ sub send_request {
 }
 
 sub new_transaction_id {
-	my( $self, $transaction_id ) = @_;
+	my( $self, $group, $transaction_id ) = @_;
 
 ##	print "SyncDiff::DB->new_transaction_id() - Starting\n";
 
 	my %request = (
 		operation	=> 'new_transaction_id',
+		group		=> $group,
 		transaction_id	=> $transaction_id,
 		);
 
@@ -361,7 +373,7 @@ sub new_transaction_id {
 }
 
 sub _new_transaction_id {
-	my( $self, $transaction_id ) = @_;
+	my( $self, $group, $transaction_id ) = @_;
 	my $dbh = $self->dbh;
 
 ##	print "~~~ Adding a transaction\n";
@@ -370,8 +382,8 @@ sub _new_transaction_id {
 ##
 ##	print "^^^^^^^^^^^^^^^^^^^^^^^^^\n";
 
-	my $add_transaction = $dbh->prepare("INSERT INTO transactions (transactionid, timeadded) VALUES( ?, strftime('%s','now') )");
-	$add_transaction->execute( $transaction_id );
+	my $add_transaction = $dbh->prepare("INSERT INTO transactions (`group`, transactionid, timeadded) VALUES( ?, ?, strftime('%s','now') )");
+	$add_transaction->execute( $group, $transaction_id );
 
 	return 0;
 } # end _new_transaction_id()
@@ -398,7 +410,6 @@ sub _get_transaction_id {
 
 sub lookup_file {
 	my( $self, $filename, $group, $groupbase ) = @_;
-##	print "SyncDiff::DB->new_transaction_id() - Starting\n";
 
 	my %request = (
 		operation	=> 'lookup_file',

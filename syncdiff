@@ -89,7 +89,7 @@ $config->read_config( $config_file );
 # 	$config now exists and can be passed around
 # 	as needed
 
-my $dbconnection = SyncDiff::DB->new();
+my $dbconnection = SyncDiff::DB->new( config => $config );
 
 $dbconnection->file( "psync.sqlite" );
 
