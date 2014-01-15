@@ -121,6 +121,11 @@ sub process_request {
 		my $json_response = encode_json( $response );
 
 		print $socket $json_response ."\n";
+
+		if( $response eq "SOCKDIE" ){
+			$socket->shutdown(2);
+			exit(0);
+		}
 	}
 } # end recv_loop()
 

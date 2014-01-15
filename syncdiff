@@ -101,7 +101,7 @@ if( $run_only_scan ){
 } # end if( $run_only_scan )
 
 if( $run_as_server ){
-	my $server = SyncDiff::Server->new( dbref => $dbconnection );
+	my $server = SyncDiff::Server->new( config => $config->config, dbref => $dbconnection );
 	$server->run();
 	exit(0);
 }

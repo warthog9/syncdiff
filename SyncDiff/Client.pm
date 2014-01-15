@@ -132,6 +132,7 @@ my $TIMEOUT = 300;
 
 sub fork_and_connect {
 	my( $self ) = @_;
+	my $dbref = $self->dbref();
 
 	print "Client::fork_and_connect - ". $self->group ." - ". $self->groupbase ."\n";
 	print Dumper $self->config_options;
@@ -195,6 +196,19 @@ sub fork_and_connect {
 		print $sock "Hello World!\n";
 
 		#
+		# We need to authenticate against the server
+		# before we try to negotiate a protocol
+		#
+
+		my $auth_status = $self->authenticate_to( $dbref->getlocalhostname, $self->group, $self->config_options->{groups}->{ $self->group }->{key} );
+
+		if( $auth_status == 0 ){
+			print "Authentication failed for $host\n";
+			$sock->shutdown(2);
+			next;
+		}
+
+		#
 		# Ok, here we get the proper protocol all worked out
 		#
 		$self->request_protocol_versions( $host );
@@ -215,6 +229,27 @@ sub fork_and_connect {
 		close( $sock );
 	} # end foreach $host
 } # end fork_and_connect()
+
+sub authenticate_to {
+	my( $self, $local_hostname, $group, $key ) = @_;
+
+	my %request = (
+		'operation'	=> 'authenticate',
+		'group'		=> $group,
+		'key'		=> $key,
+		'hostname'	=> $local_hostname,
+	);
+
+	my $auth_status = $self->basic_send_request( %request );
+
+	print Dumper $auth_status;
+
+	if( $auth_status == 0 ){
+		return 1;
+	}
+
+	return 0;
+} # end request_protocol_version()
 
 sub request_protocol_versions {
 	my( $self, $host ) = @_;
