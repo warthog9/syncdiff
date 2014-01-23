@@ -241,6 +241,9 @@ sub process_request {
 	if( $request->{operation} eq "get_remote_log_position" ){
 		return $self->_get_remote_log_position( $request->{hostname}, $request->{group} );
 	}
+	if( $request->{operation} eq "get_files_changed_since" ){
+		return $self->_get_files_changed_since( $request->{group}, $request->{transactionid} );
+	}
 	if( $request->{operation} eq "getlocalhostname" ){
 		return $self->_getlocalhostname();
 	}
@@ -894,6 +897,91 @@ sub _get_remote_log_position {
 	}
 
 } # end _get_remote_log_position()
+
+sub get_files_changed_since {
+	my( $self, $group, $transactionid ) = @_;
+
+	my %request = (
+		operation	=> 'get_files_changed_since',
+		group		=> $group,
+		transactionid	=> $transactionid,
+		);
+
+	my $response = $self->send_request( %request );
+
+	return $response;
+} #end get_files_changed_since()
+
+sub _get_files_changed_since {
+	my( $self, $group, $transactionid ) = @_;
+	my $dbh = $self->dbh;
+
+	my $transaction_status = $self->_get_transaction_id( $group, $transactionid );
+
+	my $sth = undef; 
+	my $sql = undef;
+
+	if(
+		$transaction_status eq "0"
+		&&
+		$transaction_status ne $transactionid
+	){
+		# Transaction wasn't found for this
+		# group, lets assume we need to give it everything
+		$sql = "SELECT id, transactionid FROM servers_seen WHERE hostname=? AND `group`=? order by id desc limit 1;";
+
+		$sth = $dbh->prepare($sql);
+	} else {
+		# Transaction exists, and is in the right group
+		# that's a bonus.  This means we can pick up a smaller
+		# change set
+
+		# unsurprisingly this is going to be ridiculously complex
+		# sql statement with 3 sub parts
+
+		$sql = "SELECT * FROM files WHERE last_transaction IN ( "
+				." SELECT transactionid FROM transactions WHERE timeadded >= ( "
+					." SELECT timeadded FROM transactions WHERE transactionid=? AND group=? "
+				." ) "
+			." ); ";
+
+		print "Sql: |$sql|\n";
+
+		$sth = $dbh->prepare($sql);
+	}
+
+#	print "Hostname: |$hostname| | Group: |$group|\n";
+#
+#	my $sql = "SELECT id, transactionid FROM servers_seen WHERE hostname=? AND `group`=? order by id desc limit 1;";
+#	print "Sql: $sql\n";
+#	my $sth = $dbh->prepare($sql);
+#	$sth->execute($hostname, $group);
+#
+#	if ( $sth->err ){
+#		die "ERROR! return code: ". $sth->err . " error msg: " . $sth->errstr . "\n";
+#	}
+#
+#	my $row_ref = $sth->fetchall_hashref('id');
+#	print "Current Log position stuff:\n";
+#	print Dumper $row_ref;
+#
+#	print "How many keys *ARE* there... ". ( scalar ( keys %{$row_ref} ) ) ."\n";
+#	if(
+#		( scalar ( keys %{$row_ref} ) ) == 0
+#		||
+#		( scalar ( keys %{$row_ref} ) ) > 1
+#	){
+#		return 0;
+#	}
+#
+#	my $id;
+#
+#	foreach $id ( sort keys %{$row_ref} ){
+#		print "Id is: $id\n";
+#		print "Hash is: ". $row_ref->{ $id }->{'transactionid'} ."\n";
+#		return $row_ref->{ $id }->{'transactionid'};
+#	}
+}
 
 #no moose;
 __PACKAGE__->meta->make_immutable;
