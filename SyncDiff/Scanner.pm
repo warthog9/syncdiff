@@ -201,7 +201,7 @@ sub find_wanted {
 
 	$self->scan_count( $self->scan_count + 1 );
 
-	my $found_file_obj = SyncDiff::File->new(dbref => $self->dbref);
+	my $found_file_obj = SyncDiff::File(dbref => $self->dbref);
 	$found_file_obj->get_file( $found_file, $self->group, $self->groupbase );
 
 	print Dumper $found_file_obj;
