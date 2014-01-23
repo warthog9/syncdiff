@@ -111,7 +111,8 @@ sub _process_request {
 
 	if( ! $json_success ){
 		print "JSON was malformed, ignoring - ". $recv_line ."\n";
-		next;
+		#next;
+		return;
 	}
 
 	if(
