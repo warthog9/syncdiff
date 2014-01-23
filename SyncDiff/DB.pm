@@ -376,6 +376,26 @@ sub _new_transaction_id {
 	return 0;
 } # end _new_transaction_id()
 
+sub _get_transaction_id {
+	my( $self, $group, $transactionid ) = @_;
+	my $dbh = $self->dbh;
+
+
+	my $sth = $dbh->prepare("SELECT * FROM transactions WHERE transactionid=? and `group`=?");
+	$sth->execute( $transactionid, $group );
+
+	if ( $sth->err ){
+		die "ERROR! return code: ". $sth->err . " error msg: " . $sth->errstr . "\n";
+	}
+
+	my $row_ref = $sth->fetchall_hashref('id');
+	if( ( scalar ( keys %$row_ref ) ) == 0 ){
+		return 0;
+	}
+
+	return $transactionid;
+} # end _new_transaction_id()
+
 sub lookup_file {
 	my( $self, $filename, $group, $groupbase ) = @_;
 ##	print "SyncDiff::DB->new_transaction_id() - Starting\n";
