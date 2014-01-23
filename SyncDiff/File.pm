@@ -254,8 +254,8 @@ sub get_file {
 		$filetype = 'dir';
 	}
 
-	print "Username: \n";
-	print Dumper $username;
+#	print "Username: \n";
+#	print Dumper $username;
 
 	my ( $filename, $path, $suffix ) = fileparse($file);
 	$self->filename( $filename );
