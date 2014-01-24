@@ -193,6 +193,7 @@ sub _check_authentication {
 		$self->remote_hostname( $remote_hostname );
 
 		print Dumper $config->{groups}->{ $group };
+		$self->groupbase( $config->{groups}->{ $group }->{patterns}[0] );
 		return 1;
 	}
 
