@@ -69,6 +69,11 @@ has 'dbref' => (
 		required => 0,
 		);
 
+has '+short_rev' => (
+		default	=> 'no',
+		);
+	
+
 sub setup {
 	my( $self ) = @_;
 

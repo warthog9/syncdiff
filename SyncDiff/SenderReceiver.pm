@@ -45,6 +45,11 @@ has 'json' => (
 		is	=> 'rw',
 		isa	=> 'JSON::XS',
 		);
+has 'short_rev' => (
+		is	=> 'rw',
+		isa	=> 'Str',
+		default	=> 'yes',
+		);
 
 #
 # Ridiculous Globals (for now)
@@ -259,7 +264,7 @@ sub plain_receiver {
 
 	print "Length of recieved line: ". length( $line ) ."\n";
 
-	return $line;
+	return $line if( $self->short_rev eq "yes" );
 
 	my $response = decode_json( $line );
 
