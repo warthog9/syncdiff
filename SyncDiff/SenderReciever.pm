@@ -83,18 +83,29 @@ sub process_request {
 	my $line = undef;
 	my $socket = $self->socket;
 
-	$line = $self->plain_receiver( {} );
+	while(1){
+		print "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n";
+		print "SR - process_request - Top of While loop\n";
+		print "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n";
+		$line = $self->plain_receiver( {} );
 
-	#print Dumper $socket;
+		print "Debugging Recieved line\n";
+		$self->print_debug( $line );
 
-	my $response = $self->_process_request( $line );
+		my $response = $self->_process_request( $line );
+		$self->print_debug( $response );
 
-	$self->plain_send( $response );
+		if( ! defined $response  ){
+			next;
+		}
 
-	if( $response eq "SOCKDIE" ){
-		$socket->shutdown(2);
-		exit(0);
-	}
+		$self->plain_send( $response );
+
+		if( $response eq "SOCKDIE" ){
+			$socket->shutdown(2);
+			exit(0);
+		}
+	} # end while() loop
 } # end recv_loop()
 
 sub send_request {
