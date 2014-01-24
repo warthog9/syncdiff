@@ -321,22 +321,39 @@ sub basic_send_request {
 	$socket->flush();
 
 	my $line = undef;
+	my $read_line = undef;
 
 	# attach a timeout to trying to listen to the
 	# socket in case things take forever and we
 	# should just give up and die
 	eval {
 		alarm($TIMEOUT);
-		while( $line = <$socket> ){
-			if( defined $line  ){
-				chomp( $line );
-				last if( $line ne "" );
-			}
+		while( $read_line = <$socket> ){
+			if( defined $read_line  ){
+				chomp( $read_line );
+				#last if( $line ne "" );
+				if( 
+					$read_line eq "--END--\n"
+					||
+					$read_line eq "--END--"
+				){
+					last;
+				} else {
+					$line .= $read_line;
+				}
+			} # end if read_line
 		} # end while loop waiting on socket to return
 		return 0;
 	}; # end eval / timeout 
 
+	if( ! defined $line ){
+		return undef;
+	}
+
 	chomp( $line );
+
+	print "Basic send receive line back:\n";
+	print Dumper $line;
 
 	if( $line eq "0" ){
 		return 0;
