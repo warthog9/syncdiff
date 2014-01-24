@@ -257,6 +257,8 @@ sub plain_receiver {
 
 	print "Length of recieved line: ". length( $line ) ."\n";
 
+	return $line;
+
 	my $response = decode_json( $line );
 
 	if(
