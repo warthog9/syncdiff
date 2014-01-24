@@ -232,7 +232,7 @@ sub plain_receiver {
 #	print Dumper $line;
 
 	if( ! defined $line ){
-		return -1;
+		return undef;
 	}
 
 	print "SR - Checking line that we've gotten:\n";
