@@ -259,7 +259,7 @@ sub create_transaction_id {
 
 ##	print "\t*** About to create new transaction id in database!!!!\n";
 
-	my $retval = $self->dbref->new_transaction_id( $transaction_id );
+	my $retval = $self->dbref->new_transaction_id( $self->group, $transaction_id );
 
 	print "create_transaction_id retval: ". $retval ."\n";
 
