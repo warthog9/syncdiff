@@ -23,6 +23,7 @@ use MIME::Base64;
 use IO::Socket;
 use IO::Handle;
 use Try::Tiny;
+use Digest::SHA qw(sha256 sha256_hex sha256_base64);
 
 #
 # Debugging
@@ -114,6 +115,7 @@ sub process_request {
 		){
 			my %temp_resp = (
 				SCALAR	=> $response,
+				checksum => sha256_base64($response),
 			);
 			$response = \%temp_resp;
 		}
