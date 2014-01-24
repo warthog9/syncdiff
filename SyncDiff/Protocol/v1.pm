@@ -112,6 +112,16 @@ sub client_run {
 	}
 } # end client_run()
 
+sub _get_files_changed_since {
+	my( $self, $transactionid ) = @_;
+	my $dbref = $self->dbref;
+	
+	my $file_list = $dbref->files_changed_since( $self->group, $transactionid );
+
+	print "Files found changed since $transactionid\n";
+	print Dumper $file_list;
+
+} # end get_files_changed_since()
 
 sub getCurrentLogPosition {
 	my( $self ) = @_;
@@ -166,6 +176,9 @@ sub server_process_request {
 #		print "Found log position on Server:\n";
 #		print Dumper $logPosition;
 		return $logPosition;
+	}
+	if( $response->{v1_operation} eq "get_files_changed_since" ){
+		return $self->_get_files_changed_since( $response->{transactionid} );
 	}
 }
 
