@@ -940,6 +940,12 @@ sub get_files_changed_since {
 
 	my $response = $self->send_request( %request );
 
+#	print "---------------------\n";
+#	print "Response from _get_files_changed_since:\n";
+#	print "---------------------\n";
+#	print Dumper $response;
+#	print "^^^^^^^^^^^^^^^^^^^^^\n";
+
 	return $response;
 } #end get_files_changed_since()
 
@@ -951,6 +957,8 @@ sub _get_files_changed_since {
 
 	my $sth = undef; 
 	my $sql = undef;
+
+	print "Transaction status: ". $transaction_status ."\n";
 
 	if(
 		$transaction_status eq "0"
