@@ -15,7 +15,7 @@ use SyncDiff::File;
 #
 
 use JSON::XS;
-use File::Rdiff qw(:trace :nonblocking);
+use File::Rdiff qw(:trace :nonblocking :file);
 use MIME::Base64;
 use File::Path qw(make_path remove_tree);
 use PerlIO::scalar;
@@ -514,8 +514,178 @@ sub server_process_request {
 		return $logPosition;
 	}
 	if( $response->{v1_operation} eq "get_files_changed_since" ){
-		return $self->_get_files_changed_since( $response->{transactionid} );
+		my $files_changed_response = $self->_get_files_changed_since( $response->{transactionid} );
+#		print "---------------------\n";
+#		print "Response from get_files_changed_since:\n";
+#		print "---------------------\n";
+#		print Dumper $files_changed_response;
+#		print "^^^^^^^^^^^^^^^^^^^^^\n";
+
+		return $files_changed_response;
 	}
+	if( $response->{v1_operation} eq "syncfile" ){
+		print "--------------------------------------------------------------\n";
+		print "***                  START SYNCFILE                        ***\n";
+		print "--------------------------------------------------------------\n";
+
+		my $pid = 0;
+
+		if( ( $pid = fork() ) == 0 ){
+			# child process
+			
+			chroot( $self->groupbase );
+			chdir( "/" );
+
+			print "\n\n";
+			print "chrooted\n";
+			print "\n\n";
+
+			
+			my $sync_ret = $self->_syncfile(
+				$response->{path},
+				$response->{filename},
+				$response->{filepath},
+				$response->{signature},
+			);
+
+			print "~~ after syncfile response length: ". length( $sync_ret ) ."\n";
+			print "Length of encoded delta buffer: ". length( $sync_ret->{delta} ) ."\n";
+
+			$self->plain_send( $sync_ret );
+			exit(0);
+		}
+
+		my $child;
+		do {
+			$child = waitpid( $pid, 0);
+		} while( $child > 0);
+		print "--------------------------------------------------------------\n";
+		print "***                  END SYNCFILE                          ***\n";
+		print "--------------------------------------------------------------\n";
+	}
+
+	return undef;
+} # end server_progress_request()
+
+sub _syncfile {
+	my( $self, $path, $filename, $filepath, $signature64 ) = @_;
+
+	# We need to build the delta, based on the signature
+
+	my ($delta, $delta_filename) = tempfile();
+	binmode( $delta, ':raw');
+
+	my $new;
+	open( $new, "<", $filepath ) or die "new_buffer: $filepath - $!\n";	
+	binmode( $new, ':raw');
+
+#	print "--------------------------\n";
+#	print "Sig64 encoded:\n";
+#	print "--------------------------\n";
+#	#my $str = $signature64;
+#	#substr($str, 20) = "";
+#	#print "$str\n";   # prints "abc"
+#	print Dumper $signature64;
+#	print "^^^^^^^^^^^^^^^^^^^^^^^^^^\n";
+
+
+	my ($sig, $sig_filename) = tempfile();
+	binmode( $sig, ":raw" );
+	print $sig decode_base64( $signature64 );;
+	seek $sig, 0, 0;
+
+	print Dumper $sig;
+
+	print "Loading sig file\n";
+
+	$sig = loadsig_file $sig;
+
+	ref $sig or exit 1;
+
+	print "Building hash table\n";
+
+	$sig->build_hash_table;
+
+	print "Deltafying things\n";
+
+	File::Rdiff::delta_file $sig, $new, $delta;
+
+#	print "--------------------------\n";
+#	print "Sig:\n";
+#	print "--------------------------\n";
+#	print Dumper $sig;
+#	print "--------------------------\n";
+#	print "New:\n";
+#	print "--------------------------\n";
+#	print Dumper $new;
+#	print "--------------------------\n";
+#	print "Delta:\n";
+#	print "--------------------------\n";
+#	print Dumper $delta;
+#	print "^^^^^^^^^^^^^^^^^^^^^^^^^^\n";
+
+	my $delta_buffer = "";
+
+	seek $delta, 0, 0;
+	my $bytes_read = 0;
+	my $data;
+	while ((my $n = read $delta, $data, 4096) != 0) {
+		#print "~~ $n bytes read\n";
+		$bytes_read = $bytes_read + $n;
+		$delta_buffer .= $data;
+	}
+	print "~ $bytes_read from Delta file\n";
+
+	print "Length of Delta Buffer: ". length( $delta_buffer ) ."\n";
+
+
+	#close $sig;
+	unlink $sig_filename;
+	close $delta;
+	unlink $delta_filename;
+	close $new;
+
+	my $delta_buffer_encoded = encode_base64( $delta_buffer );
+	print "Length of Delta Buffer: ". length( $delta_buffer ) ."\n";
+	print "Length of encoded delta buffer: ". length( $delta_buffer_encoded ) ."\n";
+
+
+
+	print "--------------------------\n";
+	print "Delta Buffer encoded:\n";
+	print "--------------------------\n";
+#	my $str = $delta_buffer_encoded;
+#	substr($str, 20) = "";
+#	print "$str\n";   # prints "abc"
+	#print Dumper $delta_buffer_encoded;
+	print "Total length: ". length( $delta_buffer_encoded ). "\n";
+	print "^^^^^^^^^^^^^^^^^^^^^^^^^^\n";
+
+#	print "--------------------------\n";
+#	print "Delta encoded:\n";
+#	print "--------------------------\n";
+#	my $str = $delta_buffer_encoded;
+#	substr($str, 250) = "";
+#	print "$str\n";   # prints "abc"
+#	print substr( $str, 0, 250 ) ."\n";
+#	print Dumper $delta_buffer_encoded;
+#	print "^^^^^^^^^^^^^^^^^^^^^^^^^^\n";
+
+
+
+	my %response = (
+		delta	=>	$delta_buffer_encoded,
+		checksum =>	sha256_base64( $delta_buffer_encoded),
+		checksum_pre => sha256_base64( $delta_buffer ),
+		path =>	$path,
+		filename => $filename,
+		filepath => $filepath,
+	);
+
+	print "Length of encoded delta buffer: ". length( $response{delta} ) ."\n";
+
+	#return $delta_buffer_encoded;
+	return \%response;
 }
 
 #no moose;
