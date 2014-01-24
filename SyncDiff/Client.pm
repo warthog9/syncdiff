@@ -204,6 +204,8 @@ sub fork_and_connect {
 
 		my $auth_status = $self->authenticate_to( $dbref->getlocalhostname, $self->group, $self->config_options->{groups}->{ $self->group }->{key} );
 
+		print "Auth Status: $auth_status\n";
+
 		if( $auth_status == 0 ){
 			print "Authentication failed for $host\n";
 			$sock->shutdown(2);
@@ -244,6 +246,7 @@ sub authenticate_to {
 
 	my $auth_status = $self->basic_send_request( %request );
 
+	print "authenticate_to status:\n";
 	print Dumper $auth_status;
 
 	if( $auth_status == 0 ){
@@ -260,8 +263,11 @@ sub request_protocol_versions {
 		'operation'	=> 'request_protocol_versions',
 	);
 
+	print "Going to request Protocol Versions:\n";
+
 	my $versions = $self->basic_send_request( %request );
 
+	print "Got Back Version:\n";
 	print Dumper $versions;
 
 	my $highest_proto_supported = "1.99";
