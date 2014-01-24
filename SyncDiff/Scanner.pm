@@ -204,7 +204,7 @@ sub find_wanted {
 	my $found_file_obj = SyncDiff::File(dbref => $self->dbref);
 	$found_file_obj->get_file( $found_file, $self->group, $self->groupbase );
 
-	print Dumper $found_file_obj;
+	#print Dumper $found_file_obj;
 
 	#
 	# Ok at this point we've found a file
@@ -217,7 +217,7 @@ sub find_wanted {
 		$found_file_obj->last_transaction( $self->current_transaction_id );
 
 		print "Found File Object:\n";
-		print Dumper $found_file_obj;
+		#print Dumper $found_file_obj;
 
 		$self->dbref->add_file( $found_file_obj );
 		return;
