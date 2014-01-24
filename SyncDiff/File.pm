@@ -169,6 +169,8 @@ sub _overload_comparison {
 			||
 			$attr->name eq "last_transaction"
 			||
+			$attr->name eq "dbref"
+			||
 			(
 				$attr->name eq "checksum"
 				&&
