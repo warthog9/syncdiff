@@ -347,6 +347,10 @@ sub send_request {
 
 	my $response = decode_json( $line );
 
+	if( ref( $response ) eq "ARRAY" ){
+		return $response;
+	}
+
 	if( defined $response->{ZERO} ){
 		return 0;
 	}
