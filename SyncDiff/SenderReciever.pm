@@ -331,7 +331,7 @@ sub print_debug {
 			||
 			exists $request->{signature}
 		){
-			$temp_delta = $request->{signature};
+			$temp_sig = $request->{signature};
 			$temp_req->{signature} = "<STUFF>";
 		}
 	} # end hash saves
