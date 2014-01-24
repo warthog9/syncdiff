@@ -191,10 +191,12 @@ sub fork_and_connect {
 			next;
 		} # end skipping if the socket is broken
 
+		$sock->autoflush(1);
+
 		$self->socket( $sock );
 
-		print $sock "Hello World!\n";
-
+#		print $sock "Hello World!\n";
+#
 		#
 		# We need to authenticate against the server
 		# before we try to negotiate a protocol
@@ -308,6 +310,9 @@ sub basic_send_request {
 	my $socket = $self->socket;
 
 	print $socket $json ."\n";
+	$socket->flush();
+	print $socket "--END--\n";
+	$socket->flush();
 
 	my $line = undef;
 
