@@ -102,7 +102,7 @@ override 'run_child' => sub {
 sub _process_request {
 	my( $self, $recv_line ) = @_;
 
-	print "Listener got: $recv_line\n";
+#	print "Listener got: $recv_line\n";
 
 	my $response = undef;
 	my $json_success = try {
@@ -114,6 +114,9 @@ sub _process_request {
 		#next;
 		return;
 	}
+
+#	print "Server - _process_request:\n";
+#	print Dumper $response;
 
 	if(
 		exists( $response->{operation} )
@@ -129,8 +132,11 @@ sub _process_request {
 		my $auth_status = $self->_check_authenticateion( $response->{hostname}, $response->{group}, $response->{key} );
 
 		if( $auth_status == 0 ){
+			print "Socket Die, Auth really failed\n";
 			return "SOCKDIE";
 		}
+
+		print "Going to return successful Authentication\n";
 		return 0;
 	}
 	if(
@@ -149,6 +155,7 @@ sub _process_request {
 		$response->{request_version} < 2
 	){
 		print "Primary protocol version 1 found\n";
+		print Dumper $self->groupbase;
 		$self->proto(
 			SyncDiff::Protocol::v1->new(
 				socket => $self->socket,
@@ -156,22 +163,25 @@ sub _process_request {
 				dbref => $self->dbref,
 				group => $self->group,
 				hostname => $self->remote_hostname,
+				groupbase => $self->groupbase,
 			)
 		);
 		return $self->proto->getVersion();
 	}
 
-	return $self->proto->server_process_request( $response );
+	my $processed_response = $self->proto->server_process_request( $response );
+
+	return $processed_response;
 } # end process_request()
 
-sub _check_authenticateion {
+sub _check_authentication {
 	my ( $self, $remote_hostname, $group, $key ) = @_;
 	my $config = $self->config;
 
 	my $group_key = $config->{groups}->{ $group }->{key};	
-	print "--------------------------\n";
-	print Dumper $config;
-	print "^^^^^^^^^^^^^^^^^^^^^^^^^^\n";
+#	print "--------------------------\n";
+#	print Dumper $config;
+#	print "^^^^^^^^^^^^^^^^^^^^^^^^^^\n";
 
 	print "Got: Group |$group| Key |$key|\n";
 	print "We have |$group_key|\n";
@@ -180,6 +190,8 @@ sub _check_authenticateion {
 		print "Auth succeeded\n";
 		$self->group( $group );
 		$self->remote_hostname( $remote_hostname );
+
+		print Dumper $config->{groups}->{ $group };
 		return 1;
 	}
 
