@@ -4,7 +4,7 @@ package SyncDiff::Protocol::v1;
 $SyncDiff::Protocol::v1::VERSION = '0.01';
 use Moose;
 
-extends qw(SyncDiff::SenderReciever);
+extends qw(SyncDiff::SenderReceiver);
 
 # SyncDiff parts I need
 

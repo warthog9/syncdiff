@@ -5,7 +5,7 @@ $SyncDiff::Server::VERSION = '0.01';
 
 use Moose;
 
-extends 'SyncDiff::Forkable', 'SyncDiff::SenderReciever';
+extends 'SyncDiff::Forkable', 'SyncDiff::SenderReceiver';
 
 #
 # Needed to communicate with other modules

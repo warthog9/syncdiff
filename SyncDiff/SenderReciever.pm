@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 
-package SyncDiff::SenderReciever;
-$SyncDiff::SenderReciever::VERSION = '0.01';
+package SyncDiff::SenderReceiver;
+$SyncDiff::SenderReceiver::VERSION = '0.01';
 
 use Moose;
 
@@ -316,7 +316,7 @@ sub print_debug {
 	my $temp_delta = undef;
 	my $temp_sig = undef;
 
-	print "SenderReciever Debug:\n";
+	print "SenderReceiver Debug:\n";
 
 	if( ref($request) eq 'HASH' ){
 		if(
