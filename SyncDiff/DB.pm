@@ -971,9 +971,13 @@ sub _get_files_changed_since {
 	){
 		# Transaction wasn't found for this
 		# group, lets assume we need to give it everything
-		$sql = "SELECT id, transactionid FROM servers_seen WHERE hostname=? AND `group`=? order by id desc limit 1;";
+
+		print "*** Transaction not found, should just send everything\n";
+		$sql = "SELECT * FROM files WHERE syncgroup=?;";
 
 		$sth = $dbh->prepare($sql);
+
+		$sth->execute( $group );
 	} else {
 		# Transaction exists, and is in the right group
 		# that's a bonus.  This means we can pick up a smaller
