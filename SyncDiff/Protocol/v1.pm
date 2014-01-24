@@ -46,6 +46,13 @@ has 'group' => (
 		required => 1,
 		);
 
+has 'groupbase' => (
+	is		=> 'rw',
+	isa		=> 'Str',
+	required	=> 1,
+	);
+
+
 has 'dbref' => (
 		is	=> 'rw',
 		isa	=> 'Object',

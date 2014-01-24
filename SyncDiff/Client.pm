@@ -300,7 +300,7 @@ sub request_protocol_versions {
 		&&
 		$proto_to_use < 2.0
 	){
-		$protocol_obj = SyncDiff::Protocol::v1->new( socket => $self->socket, version => $proto_to_use, dbref => $self->dbref, group => $self->group, hostname => $host );
+		$protocol_obj = SyncDiff::Protocol::v1->new( socket => $self->socket, version => $proto_to_use, dbref => $self->dbref, group => $self->group, hostname => $host, groupbase => $self->groupbase );
 	}
 
 	$protocol_obj->setup();
