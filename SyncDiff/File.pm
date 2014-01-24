@@ -143,11 +143,11 @@ use overload 'eq' => \&_overload_comparison, fallback => 1;
 sub _overload_comparison {
 	my( $left, $right, $options ) = @_;
 
-	print "*** Left:\n";
-	print Dumper $left;
-
-	print "*** Right:\n";
-	print Dumper $right;
+#	print "*** Left:\n";
+#	print Dumper $left;
+#
+#	print "*** Right:\n";
+#	print Dumper $right;
 
 	for my $attr ( $left->meta->get_all_attributes ) {
 		print "COMPARISON: ". $attr->name ."\n";
@@ -182,7 +182,7 @@ sub _overload_comparison {
 			next;
 		}
 
-		print Dumper $attr->name;
+#		print Dumper $attr->name;
 
 		print "Left value: ". $left->_get_file_attr_value( $attr->name ) ."\n";
 		print "Right value: ". $right->_get_file_attr_value( $attr->name ) ."\n";
@@ -314,9 +314,9 @@ sub filepath {
 sub parse_dbrow {
 	my( $self, $db_row ) = @_;
 
-	print "~~~ File->parse_dbrow()\n";
-	print Dumper \$db_row;
-	print "^^^^^^^^^^^^^^^^^^^^^^^\n";
+#	print "~~~ File->parse_dbrow()\n";
+#	print Dumper \$db_row;
+#	print "^^^^^^^^^^^^^^^^^^^^^^^\n";
 
 	foreach my $row ( sort keys %{ $db_row } ){
 #		print $db_row->{$row}->{last_transaction} ."\n";
@@ -330,9 +330,9 @@ sub parse_dbrow {
 sub to_hash {
 	my( $self ) = @_;
 
-	print "File::to_hash()\n";
-	print Dumper $self;
-	print "^^^^^^^^^^^^^^^\n";
+#	print "File::to_hash()\n";
+#	print Dumper $self;
+#	print "^^^^^^^^^^^^^^^\n";
 
 	my %file_hash = (
 		path		=> $self->path,
