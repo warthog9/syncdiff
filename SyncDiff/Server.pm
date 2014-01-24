@@ -104,6 +104,10 @@ sub _process_request {
 
 #	print "Listener got: $recv_line\n";
 
+	if( ! defined $recv_line ){
+		return undef;
+	}
+
 	my $response = undef;
 	my $json_success = try {
 		$response = decode_json( $recv_line );
