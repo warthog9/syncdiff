@@ -128,7 +128,9 @@ sub _process_request {
 		&&
 		exists( $response->{hostname} )
 	){
-		my $auth_status = $self->_check_authenticateion( $response->{hostname}, $response->{group}, $response->{key} );
+		my $auth_status = $self->_check_authentication( $response->{hostname}, $response->{group}, $response->{key} );
+
+		print "_process_request Auth Status: $auth_status\n";
 
 		if( $auth_status == 0 ){
 			print "Socket Die, Auth really failed\n";
