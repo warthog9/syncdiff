@@ -235,13 +235,15 @@ sub plain_receiver {
 		return -1;
 	}
 
+	print "SR - Checking line that we've gotten:\n";
 	$self->print_debug( $line );
 
-	if( $was_json eq "1" ){
-		return $json_req;
-	}
+#	if( $was_json eq "1" ){
+#		return $json_req;
+#	}
 
 	chomp( $line );
+
 #	if(
 #		defined $request->{v1_operation}
 #		&&
