@@ -242,14 +242,14 @@ sub plain_receiver {
 	}
 
 	chomp( $line );
-	if(
-		defined $request->{v1_operation}
-		&&
-		$request->{v1_operation} eq 'syncfile'
-	){
-		print "Raw line from syncfile:\n";
-		print Dumper $line;
-	}
+#	if(
+#		defined $request->{v1_operation}
+#		&&
+#		$request->{v1_operation} eq 'syncfile'
+#	){
+#		print "Raw line from syncfile:\n";
+#		print Dumper $line;
+#	}
 
 	if( $line eq "0" ){
 		return 0;
@@ -282,12 +282,12 @@ sub plain_receiver {
 
 	if( defined $response->{SCALAR} ){
 
-		print Dumper $response;
+#		print Dumper $response;
 
 		my $checksum = sha256_base64($response->{SCALAR});
 		
-		print "SR - SCALAR recieved - Calculated: $checksum\n";
-		print "SR - SCALAR recieved - Transfered: ". $response->{checksum} ."\n";
+#		print "SR - SCALAR recieved - Calculated: $checksum\n";
+#		print "SR - SCALAR recieved - Transfered: ". $response->{checksum} ."\n";
 		if( $checksum ne $response->{checksum} ){
 			print "*** Checksum's don't match\n";
 			print "*** Calculated: $checksum\n";
