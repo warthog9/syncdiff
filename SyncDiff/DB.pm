@@ -988,47 +988,54 @@ sub _get_files_changed_since {
 
 		$sql = "SELECT * FROM files WHERE last_transaction IN ( "
 				." SELECT transactionid FROM transactions WHERE timeadded >= ( "
-					." SELECT timeadded FROM transactions WHERE transactionid=? AND group=? "
+					." SELECT timeadded FROM transactions WHERE transactionid=? AND `group`=? "
 				." ) "
 			." ); ";
 
 		print "Sql: |$sql|\n";
 
 		$sth = $dbh->prepare($sql);
+
+		$sth->execute( $transactionid, $group );
 	}
 
-#	print "Hostname: |$hostname| | Group: |$group|\n";
-#
-#	my $sql = "SELECT id, transactionid FROM servers_seen WHERE hostname=? AND `group`=? order by id desc limit 1;";
-#	print "Sql: $sql\n";
-#	my $sth = $dbh->prepare($sql);
-#	$sth->execute($hostname, $group);
-#
-#	if ( $sth->err ){
-#		die "ERROR! return code: ". $sth->err . " error msg: " . $sth->errstr . "\n";
-#	}
-#
-#	my $row_ref = $sth->fetchall_hashref('id');
-#	print "Current Log position stuff:\n";
-#	print Dumper $row_ref;
-#
-#	print "How many keys *ARE* there... ". ( scalar ( keys %{$row_ref} ) ) ."\n";
-#	if(
-#		( scalar ( keys %{$row_ref} ) ) == 0
-#		||
-#		( scalar ( keys %{$row_ref} ) ) > 1
-#	){
-#		return 0;
-#	}
-#
-#	my $id;
-#
-#	foreach $id ( sort keys %{$row_ref} ){
-#		print "Id is: $id\n";
-#		print "Hash is: ". $row_ref->{ $id }->{'transactionid'} ."\n";
-#		return $row_ref->{ $id }->{'transactionid'};
-#	}
-}
+	if ( $sth->err ){
+		die "ERROR! return code: ". $sth->err . " error msg: " . $sth->errstr . "\n";
+	}
+
+	my $row_ref = $sth->fetchall_hashref('id');
+	print "Files Found:\n";
+	print Dumper $row_ref;
+
+	my @return_array = ();
+	my %return_hash = ();
+	my $x = 0;
+
+	foreach my $id ( sort keys %{$row_ref} ){
+		print "Id is: $id\n";
+		print "Hash is: ". $row_ref->{ $id }->{'last_transaction'} ."\n";
+
+		my $temp_file_obj = SyncDiff::File->new(dbref => $self);
+
+		$temp_file_obj->from_hash( $row_ref->{ $id } );
+
+		my %temp_file_hash = $temp_file_obj->to_hash();
+
+		#push( @return_array, %temp_file_hash );
+		$return_hash{$x} = \%temp_file_hash;
+		$x = $x + 1;
+	}
+
+#	print "---------------------\n";
+#	print "Files that have changed:\n";
+#	print "---------------------\n";
+#	#print Dumper \@return_array;
+#	print Dumper \%return_hash;
+#	print "^^^^^^^^^^^^^^^^^^^^^\n";
+
+	#return \@return_array;
+	return \%return_hash;
+} # end _get_files_changed_since()
 
 #no moose;
 __PACKAGE__->meta->make_immutable;
