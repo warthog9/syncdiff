@@ -69,7 +69,7 @@ sub recv_loop {
 
 		if( ( $child = fork() ) == 0 ){
 			# child process
-			print Dumper $new_sock;
+			#print Dumper $new_sock;
 			$self->socket( $new_sock );
 			$self->json( new JSON::XS );
 			$self->process_request();
@@ -83,69 +83,95 @@ sub process_request {
 	my $line = undef;
 	my $socket = $self->socket;
 
-	print Dumper $socket;
+	$line = $self->plain_receiver( {} );
 
-	if( ! defined $socket ){
-		return;
-	}
+	#print Dumper $socket;
 
-	while( $line = <$socket> ){
-		chomp($line);
+	my $response = $self->_process_request( $line );
 
-		print "Server got:\n";
-		print Dumper $line;
+	$self->plain_send( $response );
 
-		my $response = $self->_process_request( $line );
-
-		if(
-			$response eq "0"
-		){
-			my %temp_resp = (
-				ZERO	=> "0",
-			);
-			$response = \%temp_resp;
-		}
-
-##		print "Reference check: ". ref( $response ) ."\n";
-##		print Dumper $response;
-
-		my $ref_resp = ref( \$response );
-
-		if(
-			! defined $ref_resp
-			||
-			$ref_resp eq "SCALAR"
-			||
-			$ref_resp eq ""
-		){
-			my %temp_resp = (
-				SCALAR	=> $response,
-				checksum => sha256_base64($response),
-			);
-			$response = \%temp_resp;
-		}
-
-		my $json_response = encode_json( $response );
-
-		print $socket $json_response ."\n";
-
-		if( $response eq "SOCKDIE" ){
-			$socket->shutdown(2);
-			exit(0);
-		}
+	if( $response eq "SOCKDIE" ){
+		$socket->shutdown(2);
+		exit(0);
 	}
 } # end recv_loop()
 
 sub send_request {
 	my( $self, %request ) = @_;
+	my $socket = $self->socket;
 
-	my $json = encode_json( \%request );
+	$self->plain_send( \%request );
+
+	return $self->plain_receiver( \%request );
+} # end send_request()
+
+sub plain_send {
+	my( $self, $request ) = @_;
+
+	print "plain_send - length: ". length( $request ) ."\n";
+
+	if(
+		$request eq "0"
+	){
+		my %temp_resp = (
+			ZERO	=> "0",
+		);
+		$request = \%temp_resp;
+	}
+
+	my $ref_request = ref( \$request );
+
+	if(
+		! defined $ref_request
+		||
+		$ref_request eq "SCALAR"
+		||
+		$ref_request eq ""
+	){
+		my $checksum = sha256_base64($request);
+
+		print "SR - Scalar recieving - checksum: $checksum\n";
+		
+		my %temp_request = (
+			SCALAR	=> $request,
+			checksum => $checksum,
+		);
+		$request = \%temp_request;
+	}
+
+#	print "Plain Send Debug:\n";
+#	print Dumper $request;
+
+	my $json = encode_json( $request );
+
+#	print "Plain Send Encoded JSON\n";
+#	print Dumper $json;
+
+	print "Length of json: ". length( $json ) ."\n";
 
 	my $socket = $self->socket;
 
+#	print $socket "WTF BBQ\n";
+#	$socket->flush();
+
 	print $socket $json ."\n";
+	$socket->flush();
+	print $socket "--END--\n";
+	$socket->flush();
+} # end plain_send()
+
+sub plain_receiver {
+	my( $self, $request ) = @_;
+
+	my $socket = $self->socket;
 
 	my $line = undef;
+	my $read_line = undef;
+
+	if( ! defined $socket ){
+		return;
+	}
 
 	# attach a timeout to trying to listen to the
 	# socket in case things take forever and we
@@ -154,10 +180,25 @@ sub send_request {
 	my $json_req = undef;
 	eval {
 		alarm($TIMEOUT);
-		while( $line = <$socket> ){
-			if( defined $line  ){
-				chomp( $line );
-				last if( $line ne "" );
+		while( $read_line = <$socket> ){
+			print "reading: $read_line\n";
+			if( defined $read_line  ){
+				chomp( $read_line );
+				#last if( $line ne "" );
+				if( 
+					$read_line eq "--END--\n"
+					||
+					$read_line eq "--END--"
+				){
+					if( ! defined $line ){
+						# print "SOMETHING IS WRONG IN THE PROTOCOL AND SHOULD BE LOOKED INTO\n";
+						next;
+					}
+					$was_json = 0;
+					last;
+				} else {
+					$line .= $read_line;
+				}
 			}
 			my $json = $self->json;
 			my $found = 0;
@@ -173,6 +214,11 @@ sub send_request {
 		return 0;
 	}; # end eval / timeout 
 
+#	} # end if/else
+
+#	print "Got Line back:\n";
+#	print Dumper $line;
+
 	if( ! defined $line ){
 		return -1;
 	}
@@ -182,15 +228,33 @@ sub send_request {
 	}
 
 	chomp( $line );
+	if(
+		defined $request->{v1_operation}
+		&&
+		$request->{v1_operation} eq 'syncfile'
+	){
+		print "Raw line from syncfile:\n";
+		print Dumper $line;
+	}
 
 	if( $line eq "0" ){
 		return 0;
 	}
 
+	print "Length of recieved line: ". length( $line ) ."\n";
+
 	my $response = decode_json( $line );
 
-	print Dumper $response;
-	print "Ref: ". ref( $response ). "\n";
+	if(
+		defined $request->{v1_operation}
+		&&
+		$request->{v1_operation} eq 'syncfile'
+	){
+		print "Response from send:\n";
+		print Dumper $response;
+		print "Ref: ". ref( $response ). "\n";
+		print "^^^^^^^^^^^^^^^^^^^^^\n";
+	}
 
 	if( ref( $response ) eq "ARRAY" ){
 		return $response;
@@ -201,6 +265,19 @@ sub send_request {
 	}
 
 	if( defined $response->{SCALAR} ){
+
+		print Dumper $response;
+
+		my $checksum = sha256_base64($response->{SCALAR});
+		
+		print "SR - SCALAR recieved - Calculated: $checksum\n";
+		print "SR - SCALAR recieved - Transfered: ". $response->{checksum} ."\n";
+		if( $checksum ne $response->{checksum} ){
+			print "*** Checksum's don't match\n";
+			print "*** Calculated: $checksum\n";
+			print "*** Transfered: ". $response->{checksum} ."\n";
+		}
+
 		return $response->{SCALAR};
 	}
 
@@ -209,7 +286,8 @@ sub send_request {
 	}
 
 	return $response;
-} # end send_request()
+
+} # end plain_receiver()
 
 
 #no moose;
