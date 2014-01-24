@@ -68,8 +68,8 @@ sub setup {
 
 	my $response = $self->send_request( %request );
 
-	print "Protocol V1 - Setup - Version request response:\n";
-	print Dumper $response;
+#	print "Protocol V1 - Setup - Version request response:\n";
+#	print Dumper $response;
 
 	if( $response ne "1.0" ){  # This is the only protocol version we support right now
 		print "We don't currently support protocol version: ". $response ." - bailing out\n";
@@ -122,8 +122,8 @@ sub getCurrentLogPosition {
 
 	my $response = $self->send_request( %request );
 
-	print "Found Log Position response\n";
-	print Dumper $response;
+#	print "Found Log Position response\n";
+#	print Dumper $response;
 
 	return $response;
 } # end getCurrentLogPosition()
@@ -133,8 +133,8 @@ sub shareCurrentLogPosition {
 
 	my $logPosition = $self->dbref->current_log_position();
 
-	print "Log position is:\n";
-	print Dumper $logPosition
+#	print "Log position is:\n";
+#	print Dumper $logPosition
 
 } # end shareCurrentLogPosition()
 	
@@ -152,19 +152,19 @@ sub getVersion {
 sub server_process_request {
 	my( $self, $response ) = @_;
 
-	print "Server version 1 got response: \n";
-	print Dumper $response;
+#	print "Server version 1 got response: \n";
+#	print Dumper $response;
 
 	if( ! exists( $response->{v1_operation} ) ){
 		return;
 	}
 
 	if( $response->{v1_operation} eq "getLogPosition" ){
-		print "DBref:\n";
-		print Dumper $self->dbref;
+#		print "DBref:\n";
+#		print Dumper $self->dbref;
 		my $logPosition = $self->dbref->current_log_position();
-		print "Found log position on Server:\n";
-		print Dumper $logPosition;
+#		print "Found log position on Server:\n";
+#		print Dumper $logPosition;
 		return $logPosition;
 	}
 }
