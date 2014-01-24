@@ -151,8 +151,9 @@ sub plain_send {
 		$request = \%temp_request;
 	}
 
-#	print "Plain Send Debug:\n";
-#	print Dumper $request;
+	my ($package, $filename, $line) = caller;
+	print "Called from:\n\tPackage: $package\n\tFilename: $filename\n\tLine: $line\n";
+	$self->print_debug( $request );
 
 	my $json = encode_json( $request );
 
@@ -234,6 +235,8 @@ sub plain_receiver {
 		return -1;
 	}
 
+	$self->print_debug( $line );
+
 	if( $was_json eq "1" ){
 		return $json_req;
 	}
@@ -261,10 +264,10 @@ sub plain_receiver {
 		&&
 		$request->{v1_operation} eq 'syncfile'
 	){
-		print "Response from send:\n";
-		print Dumper $response;
-		print "Ref: ". ref( $response ). "\n";
-		print "^^^^^^^^^^^^^^^^^^^^^\n";
+#		print "Response from send:\n";
+#		print Dumper $response;
+#		print "Ref: ". ref( $response ). "\n";
+#		print "^^^^^^^^^^^^^^^^^^^^^\n";
 	}
 
 	if( ref( $response ) eq "ARRAY" ){
@@ -297,8 +300,60 @@ sub plain_receiver {
 	}
 
 	return $response;
-
 } # end plain_receiver()
+
+sub print_debug {
+	my( $self, $request ) = @_;
+
+#	print Dumper $request;
+
+	my $temp_req = $request;
+
+	my $temp_delta = undef;
+	my $temp_sig = undef;
+
+	print "SenderReciever Debug:\n";
+
+	if( ref($request) eq 'HASH' ){
+		if(
+			defined $request->{delta}
+			||
+			exists $request->{delta}
+		){
+			$temp_delta = $request->{delta};
+			$temp_req->{delta} = "<STUFF>";
+		} # end delta
+
+		if(
+			defined $request->{signature}
+			||
+			exists $request->{signature}
+		){
+			$temp_delta = $request->{signature};
+			$temp_req->{signature} = "<STUFF>";
+		}
+	} # end hash saves
+
+	if(
+		ref($request) eq 'SCALAR'
+		&&
+		length( $request ) > 400
+	){
+		print substr( $request, 0, 400 ) ."\n";
+		return;
+	}
+
+	print Dumper $temp_req;
+
+	if( defined $temp_delta ){
+		$request->{delta} = $temp_delta;
+	}
+	if( defined $temp_sig ){
+		$request->{signature} = $temp_sig;
+	}
+
+	return;
+} # end print_debug()
 
 
 #no moose;
