@@ -41,6 +41,10 @@ has 'socket' => (
 		is	=> 'rw',
 		isa	=> 'IO::Socket::INET',
 		);
+has 'json' => (
+		is	=> 'rw',
+		isa	=> 'JSON::XS',
+		);
 
 #
 # Ridiculous Globals (for now)
@@ -67,6 +71,7 @@ sub recv_loop {
 			# child process
 			print Dumper $new_sock;
 			$self->socket( $new_sock );
+			$self->json( new JSON::XS );
 			$self->process_request();
 		}
 	} # end while( $new_sock = $sock->accept() ) loop
@@ -145,6 +150,8 @@ sub send_request {
 	# attach a timeout to trying to listen to the
 	# socket in case things take forever and we
 	# should just give up and die
+	my $was_json = -1;
+	my $json_req = undef;
 	eval {
 		alarm($TIMEOUT);
 		while( $line = <$socket> ){
@@ -152,12 +159,26 @@ sub send_request {
 				chomp( $line );
 				last if( $line ne "" );
 			}
+			my $json = $self->json;
+			my $found = 0;
+
+			for $json_req ( $json->incr_parse( $read_line ) ){
+				$found = 1;
+				$was_json = 1;
+				last;
+			}
+
+			last if( $found ne "0" );
 		} # end while loop waiting on socket to return
 		return 0;
 	}; # end eval / timeout 
 
 	if( ! defined $line ){
 		return -1;
+	}
+
+	if( $was_json eq "1" ){
+		return $json_req;
 	}
 
 	chomp( $line );
