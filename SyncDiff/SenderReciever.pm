@@ -211,7 +211,7 @@ sub plain_receiver {
 				} else {
 					$line .= $read_line;
 				}
-			}
+			} # end if statement
 			my $json = $self->json;
 			my $found = 0;
 
