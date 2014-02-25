@@ -45,7 +45,6 @@ use FileSync::SyncDiff::Config;
 use FileSync::SyncDiff::Scanner;
 use FileSync::SyncDiff::DB;
 use FileSync::SyncDiff::File;
-use FileSync::SyncDiff::Scanner;
 use FileSync::SyncDiff::Server;
 use FileSync::SyncDiff::Client;
 
