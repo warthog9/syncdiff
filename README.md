@@ -25,9 +25,12 @@ This app has a few external dependencies
 	librsync
 	librsync-dev
 
+<<<<<<< HEAD
 and internal dependencies
 
 	./Build installdeps
+=======
+>>>>>>> c74397892d818160b06cc39bc7e20b9a25016f7d
 
 # Building
 
@@ -45,4 +48,8 @@ and internal dependencies
 # Installing
 
     perl Build.PL
+<<<<<<< HEAD
     ./Build install
+=======
+    ./Build install
+>>>>>>> c74397892d818160b06cc39bc7e20b9a25016f7d
