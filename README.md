@@ -18,4 +18,28 @@ with folks if they want to start
 testing with this, so feel
 free to contact me.
 
+# Installing Dependencies
 
+This app has a few external dependencies
+
+	librsync
+	librsync-dev
+
+
+# Building
+
+    perl Build.PL
+    make
+
+# Running tests
+
+    ./Build test
+
+# Cleaning up
+
+    ./Build clean
+
+# Installing
+
+    perl Build.PL
+    ./Build install
