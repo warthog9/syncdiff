@@ -28,7 +28,8 @@
 # Or, see <http://www.gnu.org/licenses/>.                                 #
 ###########################################################################
 
-package SyncDiff::Forkable 0.01;
+package SyncDiff::Forkable;
+$SyncDiff::Forkable::VERSION = '0.01';
 use Moose;
 
 use SyncDiff::Util;

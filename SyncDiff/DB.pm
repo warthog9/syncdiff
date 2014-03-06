@@ -28,7 +28,8 @@
 # Or, see <http://www.gnu.org/licenses/>.                                 #
 ###########################################################################
 
-package SyncDiff::DB 0.01;
+package SyncDiff::DB;
+$SyncDiff::DB::VERSION = '0.01';
 use Moose;
 
 extends qw(SyncDiff::Forkable);
@@ -331,7 +332,7 @@ sub create_database {
 	my $transaction_id = sha256_hex( hostname() ."-". $$ ."-". time() );
 
 	print Dumper $self->config->config;
-	foreach my $group ( sort keys $self->config->config->{groups} ){
+	foreach my $group ( sort keys %{ $self->config->config->{groups} } ){
 		print "Group: $group\n";
 		$self->_new_transaction_id( $group, $transaction_id );
 	}

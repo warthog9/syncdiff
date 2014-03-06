@@ -135,7 +135,7 @@ if( $run_as_server ){
 
 #print Dumper $config->config;
 
-foreach $group_name ( keys $config->config->{groups} ){
+foreach $group_name ( keys %{ $config->config->{groups} } ){
 	print "Main client loop - group: ". $group_name ."\n";
 
 	foreach $base ( @{ $config->config->{groups}->{$group_name}->{patterns} } ){

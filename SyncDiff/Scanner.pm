@@ -28,7 +28,8 @@
 # Or, see <http://www.gnu.org/licenses/>.                                 #
 ###########################################################################
 
-package SyncDiff::Scanner 0.01;
+package SyncDiff::Scanner;
+$SyncDiff::Scanner::VERSION = '0.01';
 use Moose;
 
 extends qw(SyncDiff::Forkable);
@@ -125,7 +126,7 @@ sub full_scan {
 
 	my %running_scanners = ();
 
-	foreach my $group_name ( keys $config->config->{groups} ){
+	foreach my $group_name ( keys %{ $config->config->{groups} } ){
 		print "run only scan group: ". $group_name ."\n";
 		
 		my $scanner = undef;
