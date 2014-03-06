@@ -28,7 +28,8 @@
 # Or, see <http://www.gnu.org/licenses/>.                                 #
 ###########################################################################
 
-package SyncDiff::DB 0.01;
+package SyncDiff::DB;
+$SyncDiff::DB::VERSION = '0.01';
 use Moose;
 
 extends qw(SyncDiff::Forkable);

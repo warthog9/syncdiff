@@ -28,7 +28,8 @@
 # Or, see <http://www.gnu.org/licenses/>.                                 #
 ###########################################################################
 
-package SyncDiff::Scanner 0.01;
+package SyncDiff::Scanner;
+$SyncDiff::Scanner::VERSION = '0.01';
 use Moose;
 
 extends qw(SyncDiff::Forkable);

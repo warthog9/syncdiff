@@ -28,7 +28,8 @@
 # Or, see <http://www.gnu.org/licenses/>.                                 #
 ###########################################################################
 
-package SyncDiff::Util 0.01;
+package SyncDiff::Util;
+$SyncDiff::Util::VERSION = '0.01';
 require Exporter;
 
 @ISA = qw(Exporter);
