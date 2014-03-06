@@ -126,7 +126,7 @@ sub full_scan {
 
 	my %running_scanners = ();
 
-	foreach my $group_name ( keys $config->config->{groups} ){
+	foreach my $group_name ( keys %{ $config->config->{groups} } ){
 		print "run only scan group: ". $group_name ."\n";
 		
 		my $scanner = undef;
