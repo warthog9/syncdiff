@@ -1,1 +1,9 @@
 *.swp
+blib/
+_build/
+Build
+Build.bat
+MANIFEST.bak
+MANIFEST.SKIP.bak
+MYMETA.yml
+MYMETA.json
