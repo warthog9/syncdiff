@@ -1,0 +1,17 @@
+Build.PL
+LICENSE
+MANIFEST			This list of files
+psync_cfg_parser.y
+README.md
+syncdiff
+SyncDiff/Client.pm
+SyncDiff/Config.pm
+SyncDiff/DB.pm
+SyncDiff/File.pm
+SyncDiff/Forkable.pm
+SyncDiff/ParseCfg.pm
+SyncDiff/Protocol/v1.pm
+SyncDiff/Scanner.pm
+SyncDiff/SenderReceiver.pm
+SyncDiff/Server.pm
+SyncDiff/Util.pm
