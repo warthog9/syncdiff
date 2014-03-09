@@ -27,11 +27,12 @@ This app has a few external dependencies
 
 and internal dependencies
 
-	./Build installdeps
+	cpanm --installdeps .
 
 # Building
 
     perl Build.PL
+    ./Build
 
 # Running tests
 
