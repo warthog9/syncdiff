@@ -9,10 +9,8 @@ my $builder = Module::Build->new(
     license             => 'lgpl_2_1',
     dist_author         => 'warthog9@eaglescrag.net',
     dist_abstract       => 'SyncDiff(erent) is a statefull rsync-like file synchronizer. Think rsync + git + csync2 + unison',
-    include_dirs        => '',
-    build_requires => {
-    },
     requires => {
+	'Module::Build'             => 0.4205,
         'Moose'                     => 2.1204,
         'Parse::Lex'                => 2.15,
         'DBD::SQLite'               => 1.40,
