@@ -1,0 +1,14 @@
+language: "perl"
+
+install:
+  - cpanm -v --installdeps --notest .
+
+script: "perl Build.PL; ./Build test"
+
+notifications:
+  recipients:
+    - glundchaix@gmail.com
+  email:
+    on_success: change
+    on_failure: always
+
