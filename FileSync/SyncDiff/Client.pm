@@ -28,20 +28,20 @@
 # Or, see <http://www.gnu.org/licenses/>.                                 #
 ###########################################################################
 
-package SyncDiff::Client;
-$SyncDiff::Client::VERSION = '0.01';
+package FileSync::SyncDiff::Client;
+$FileSync::SyncDiff::Client::VERSION = '0.01';
 
 use Moose;
 
-extends qw(SyncDiff::Forkable);
+extends qw(FileSync::SyncDiff::Forkable);
 
 #
 # Needed to communicate with other modules
 #
 
-use SyncDiff::File;
-use SyncDiff::Util;
-use SyncDiff::Protocol::v1;
+use FileSync::SyncDiff::File;
+use FileSync::SyncDiff::Util;
+use FileSync::SyncDiff::Protocol::v1;
 
 #
 # Other Includes
@@ -328,7 +328,7 @@ sub request_protocol_versions {
 		&&
 		$proto_to_use < 2.0
 	){
-		$protocol_obj = SyncDiff::Protocol::v1->new( socket => $self->socket, version => $proto_to_use, dbref => $self->dbref, group => $self->group, hostname => $host, groupbase => $self->groupbase );
+		$protocol_obj = FileSync::SyncDiff::Protocol::v1->new( socket => $self->socket, version => $proto_to_use, dbref => $self->dbref, group => $self->group, hostname => $host, groupbase => $self->groupbase );
 	}
 
 	$protocol_obj->setup();

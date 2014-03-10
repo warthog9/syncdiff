@@ -28,15 +28,15 @@
 # Or, see <http://www.gnu.org/licenses/>.                                 #
 ###########################################################################
 
-package SyncDiff::Protocol::v1;
-$SyncDiff::Protocol::v1::VERSION = '0.01';
+package FileSync::SyncDiff::Protocol::v1;
+$FileSync::SyncDiff::Protocol::v1::VERSION = '0.01';
 use Moose;
 
-extends qw(SyncDiff::SenderReceiver);
+extends qw(FileSync::SyncDiff::SenderReceiver);
 
 # SyncDiff parts I need
 
-use SyncDiff::File;
+use FileSync::SyncDiff::File;
 
 #
 # Other Includes
@@ -186,7 +186,7 @@ sub get_updates_from_remote {
 	foreach my $id ( sort { $a <=> $b } keys %{$response} ){
 		print "Id is: $id\n";
 
-		my $temp_file = SyncDiff::File->new(dbref => $self->dbref );
+		my $temp_file = FileSync::SyncDiff::File->new(dbref => $self->dbref );
 		$temp_file->from_hash( $response->{$id} );	
 
 		print "Before fork:\n";
@@ -273,7 +273,7 @@ sub get_updates_from_remote {
 
 		if( $temp_file->filetype eq "file" ){
 
-			my $new_file_obj = SyncDiff::File->new(dbref => $self->dbref);
+			my $new_file_obj = FileSync::SyncDiff::File->new(dbref => $self->dbref);
 			$new_file_obj->get_file( $temp_file->filepath, $self->group, $self->groupbase );
 			$new_file_obj->checksum_file();
 
@@ -461,7 +461,7 @@ sub sync_file {
 	close $delta;
 	#unlink $delta_filename;
 
-	my $new_file_obj = SyncDiff::File->new(dbref => $self->dbref);
+	my $new_file_obj = FileSync::SyncDiff::File->new(dbref => $self->dbref);
 	$new_file_obj->get_file( $new_path, $self->group, $self->groupbase );
 	$new_file_obj->checksum_file();
 

@@ -28,18 +28,18 @@
 # Or, see <http://www.gnu.org/licenses/>.                                 #
 ###########################################################################
 
-package SyncDiff::Scanner;
-$SyncDiff::Scanner::VERSION = '0.01';
+package FileSync::SyncDiff::Scanner;
+$FileSync::SyncDiff::Scanner::VERSION = '0.01';
 use Moose;
 
-extends qw(SyncDiff::Forkable);
+extends qw(FileSync::SyncDiff::Forkable);
 
 # SyncDiff parts I need
 
-use SyncDiff::Config;
-use SyncDiff::File;
-use SyncDiff::DB;
-use SyncDiff::Util;
+use FileSync::SyncDiff::Config;
+use FileSync::SyncDiff::File;
+use FileSync::SyncDiff::DB;
+use FileSync::SyncDiff::Util;
 
 #
 # Needed for the file scanning
@@ -136,7 +136,7 @@ sub full_scan {
 			#print "\tBase Path: ". $base_path ."\n";
 
 			#print "\ttruepath: ". $config->get_truepath( $base_path ) ."\n";
-			$scanner = SyncDiff::Scanner->new( dbref => $dbconnection, group => $group_name, groupbase => $base_path );
+			$scanner = FileSync::SyncDiff::Scanner->new( dbref => $dbconnection, group => $group_name, groupbase => $base_path );
 			$scanner->fork_and_scan();
 
 			$running_scanners{$group_name}{$base_path} = $scanner;
@@ -230,7 +230,7 @@ sub find_wanted {
 
 	$self->scan_count( $self->scan_count + 1 );
 
-	my $found_file_obj = SyncDiff::File->new(dbref => $self->dbref);
+	my $found_file_obj = FileSync::SyncDiff::File->new(dbref => $self->dbref);
 	$found_file_obj->get_file( $found_file, $self->group, $self->groupbase );
 
 	#print Dumper $found_file_obj;
@@ -252,7 +252,7 @@ sub find_wanted {
 		return;
 	}
 
-	my $lookup_file_obj = SyncDiff::File->new(dbref => $self->dbref );
+	my $lookup_file_obj = FileSync::SyncDiff::File->new(dbref => $self->dbref );
 	$lookup_file_obj->from_hash( $lookup_file );
 
 
@@ -281,7 +281,7 @@ sub create_transaction_id {
 
 	
 ##	print "--------------------------\n";
-##	print "SyncDiff::Scanner->create_transaction_id() - transaction_id:\n";
+##	print "FileSync::SyncDiff::Scanner->create_transaction_id() - transaction_id:\n";
 ##	print "--------------------------\n";
 ##	print Dumper $transaction_id;
 ##	print "^^^^^^^^^^^^^^^^^^^^^^^^^^\n";

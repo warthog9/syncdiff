@@ -28,11 +28,11 @@
 # Or, see <http://www.gnu.org/licenses/>.                                 #
 ###########################################################################
 
-package SyncDiff::Forkable;
-$SyncDiff::Forkable::VERSION = '0.01';
+package FileSync::SyncDiff::Forkable;
+$FileSync::SyncDiff::Forkable::VERSION = '0.01';
 use Moose;
 
-use SyncDiff::Util;
+use FileSync::SyncDiff::Util;
 
 #
 # Needed for dealing with DB stuff

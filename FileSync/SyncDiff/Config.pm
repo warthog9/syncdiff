@@ -28,15 +28,15 @@
 # Or, see <http://www.gnu.org/licenses/>.                                 #
 ###########################################################################
 
-#package SyncDiff::Config 0.01;
-package SyncDiff::Config;
-$SyncDiff::Config::VERSION = '0.01';
+#package FileSync::SyncDiff::Config 0.01;
+package FileSync::SyncDiff::Config;
+$FileSync::SyncDiff::Config::VERSION = '0.01';
 
 use Moose;
 
 use Parse::Lex;
-use SyncDiff::ParseCfg;
-use SyncDiff::Util;
+use FileSync::SyncDiff::ParseCfg;
+use FileSync::SyncDiff::Util;
 
 use Data::Dumper;
 
@@ -108,9 +108,9 @@ sub read_config {
 #			COMMENT		#.*\n*
 
 
-#	print "SyncDiff::Config->read_config() - Turning trace on\n";
+#	print "FileSync::SyncDiff::Config->read_config() - Turning trace on\n";
 #	Parse::Lex->trace;  # Class method
-#	print "SyncDiff::Config->read_config() - Trace is enabled\n";
+#	print "FileSync::SyncDiff::Config->read_config() - Trace is enabled\n";
 
 	#print Dumper $self;
 
@@ -120,7 +120,7 @@ sub read_config {
 	my $lexer = Parse::Lex->new(@tokens);
 	#$lexer->from($fh);
 
-##	print "SyncDiff::Config->read_config() - Made it past adding the tokens\n";
+##	print "FileSync::SyncDiff::Config->read_config() - Made it past adding the tokens\n";
 
 	#bless $lexer, "Parse::Lex";
 
@@ -138,7 +138,7 @@ sub read_config {
 
 ##	print "Reference: ". ref( ${ $self->{lexer} } ) ."\n";
 
-	my $parser = SyncDiff::ParseCfg->new();
+	my $parser = FileSync::SyncDiff::ParseCfg->new();
 
 
 	my $callback_ref_lex = mitm_callback(\&lex, $self);
@@ -151,7 +151,7 @@ sub read_config {
 	$parser->YYData->{DATA} = $file_data;
 	$lexer->from( $parser->YYData->{DATA} );
 
-##	print "SyncDiff::Config->read_config() - About to run the parser...\n";
+##	print "FileSync::SyncDiff::Config->read_config() - About to run the parser...\n";
 
 	$parser->YYParse(
 				YYlex => $callback_ref_lex,
@@ -159,7 +159,7 @@ sub read_config {
 			);
 			#	YYdebug => 0x1F,
 
-##	print "SyncDiff::Config->read_config() - Made it past the parser\n";
+##	print "FileSync::SyncDiff::Config->read_config() - Made it past the parser\n";
 				##YYdebug => 0x1F,
 
 #	print "#########################################################\n";
@@ -251,7 +251,7 @@ sub get_truepath {
 		my $prefix = $path;
 		$prefix =~ s/^\%([^\%]+)\%.*$/$1/;
 
-##		print "SyncDiff::Config->get_truepath() - prefix: ". $prefix ."\n";
+##		print "FileSync::SyncDiff::Config->get_truepath() - prefix: ". $prefix ."\n";
 
 		#print Dumper $self->{config}->{prefixes};
 

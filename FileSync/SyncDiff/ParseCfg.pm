@@ -36,7 +36,7 @@
 # Or, see <http://www.gnu.org/licenses/>.                                 #
 ###########################################################################
 
-package SyncDiff::ParseCfg;
+package FileSync::SyncDiff::ParseCfg;
 use vars qw ( @ISA );
 use strict;
 

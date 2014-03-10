@@ -28,8 +28,8 @@
 # Or, see <http://www.gnu.org/licenses/>.                                 #
 ###########################################################################
 
-package SyncDiff::File;
-$SyncDiff::File::VERSION = '0.01';
+package FileSync::SyncDiff::File;
+$FileSync::SyncDiff::File::VERSION = '0.01';
 
 use Moose;
 
@@ -37,8 +37,8 @@ use Moose;
 #
 #
 
-use SyncDiff::Util;
-use SyncDiff::DB;
+use FileSync::SyncDiff::Util;
+use FileSync::SyncDiff::DB;
 
 #
 # Needed for the file scanning

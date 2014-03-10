@@ -28,19 +28,19 @@
 # Or, see <http://www.gnu.org/licenses/>.                                 #
 ###########################################################################
 
-package SyncDiff::SenderReceiver;
-$SyncDiff::SenderReceiver::VERSION = '0.01';
+package FileSync::SyncDiff::SenderReceiver;
+$FileSync::SyncDiff::SenderReceiver::VERSION = '0.01';
 
 use Moose;
 
-extends qw(SyncDiff::Forkable);
+extends qw(FileSync::SyncDiff::Forkable);
 
 #
 # Needed to communicate with other modules
 #
 
-use SyncDiff::Util;
-use SyncDiff::Protocol::v1;
+use FileSync::SyncDiff::Util;
+use FileSync::SyncDiff::Protocol::v1;
 
 #
 # Other Includes

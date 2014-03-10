@@ -28,19 +28,19 @@
 # Or, see <http://www.gnu.org/licenses/>.                                 #
 ###########################################################################
 
-package SyncDiff::DB;
-$SyncDiff::DB::VERSION = '0.01';
+package FileSync::SyncDiff::DB;
+$FileSync::SyncDiff::DB::VERSION = '0.01';
 use Moose;
 
-extends qw(SyncDiff::Forkable);
+extends qw(FileSync::SyncDiff::Forkable);
 
 #
 # Needed to communicate with other modules
 #
 
-use SyncDiff::File;
-use SyncDiff::Util;
-use SyncDiff::Config;
+use FileSync::SyncDiff::File;
+use FileSync::SyncDiff::Util;
+use FileSync::SyncDiff::Config;
 
 #
 # Needed for dealing with DB stuff
@@ -78,7 +78,7 @@ has 'dbh' => (
 
 has 'config' => (
 		is	=> 'rw',
-		isa	=> 'SyncDiff::Config',
+		isa	=> 'FileSync::SyncDiff::Config',
 		required => 1,
 		);
 
@@ -135,7 +135,7 @@ sub connect {
 		print "*** New Database, initializing and doing a file scan\n";
 
 		$self->create_database();
-#		SyncDiff::Scanner->full_scan( $self->config, $self );
+#		FileSync::SyncDiff::Scanner->full_scan( $self->config, $self );
 	}
 
 	return;
@@ -230,12 +230,12 @@ sub process_request {
 	my $request = decode_json( $line );
 
 	if( ! defined $request->{operation} ){
-		print "SyncDiff::DB->process_request() - No Operation specified!\n";
+		print "FileSync::SyncDiff::DB->process_request() - No Operation specified!\n";
 		print Dumper $request;
 		return;
 	}
 
-##	print "SyncDiff::DB->process_request() - Operation: |". $request->{operation} ."|\n";
+##	print "FileSync::SyncDiff::DB->process_request() - Operation: |". $request->{operation} ."|\n";
 
 	if( $request->{operation} eq "new_transaction_id" ){
 		return $self->_new_transaction_id( $request->{group}, $request->{transaction_id} );
@@ -341,7 +341,7 @@ sub create_database {
 sub send_request {
 	my( $self, %request ) = @_;
 
-##	print "SyncDiff::DB->send_request() - Starting\n";
+##	print "FileSync::SyncDiff::DB->send_request() - Starting\n";
 	my $json = encode_json( \%request );
 
 	my $db_pipe = $self->CHILD_IPC;
@@ -394,7 +394,7 @@ sub send_request {
 sub new_transaction_id {
 	my( $self, $group, $transaction_id ) = @_;
 
-##	print "SyncDiff::DB->new_transaction_id() - Starting\n";
+##	print "FileSync::SyncDiff::DB->new_transaction_id() - Starting\n";
 
 	my %request = (
 		operation	=> 'new_transaction_id',
@@ -474,7 +474,7 @@ sub _lookup_file {
 		return 0;
 	}
 
-	my $fileobj = SyncDiff::File->new( dbref => $self );
+	my $fileobj = FileSync::SyncDiff::File->new( dbref => $self );
 
 	$fileobj->parse_dbrow( $row_ref );
 
@@ -501,7 +501,7 @@ sub lookup_filelist {
 	foreach my $id ( sort keys %$response ){
 ##		print "Hash ID: ". $id ."\n";
 
-		my $fileobj = SyncDiff::File->new( dbref => $self );
+		my $fileobj = FileSync::SyncDiff::File->new( dbref => $self );
 		$fileobj->from_hash( $response->{$id} );
 
 #		my %filehash = $fileobj->to_hash();
@@ -540,7 +540,7 @@ sub _lookup_filelist {
 
 #	foreach my $id ( sort keys %$row_ref ){
 #		print "Hash ID: ". $id ."\n";
-#		my $fileobj = SyncDiff::File->new( dbref => $self );
+#		my $fileobj = FileSync::SyncDiff::File->new( dbref => $self );
 #
 #		$fileobj->parse_dbrow( $row_ref->{$id} );
 #
@@ -670,7 +670,7 @@ sub _add_file {
 ##	print Dumper $file;
 ##	print "------------------------\n";
 
-	my $file_obj = SyncDiff::File->new(dbref => $self );
+	my $file_obj = FileSync::SyncDiff::File->new(dbref => $self );
 
 	$file_obj->from_hash( $file );
 ##	print Dumper \$file_obj;
@@ -716,7 +716,7 @@ sub _mark_deleted {
 	my( $self, $file ) = @_;
 	my $dbh = $self->dbh;
 
-	my $file_obj = SyncDiff::File->new(dbref => $self );
+	my $file_obj = FileSync::SyncDiff::File->new(dbref => $self );
 	$file_obj->from_hash( $file );
 
 ##	print "Marking deleted:\n";
@@ -763,7 +763,7 @@ sub _update_file {
 	my( $self, $file ) = @_;
 	my $dbh = $self->dbh;
 
-	my $file_obj = SyncDiff::File->new(dbref => $self );
+	my $file_obj = FileSync::SyncDiff::File->new(dbref => $self );
 
 	$file_obj->from_hash( $file );
 
@@ -1044,7 +1044,7 @@ sub _get_files_changed_since {
 		print "Id is: $id\n";
 		print "Hash is: ". $row_ref->{ $id }->{'last_transaction'} ."\n";
 
-		my $temp_file_obj = SyncDiff::File->new(dbref => $self);
+		my $temp_file_obj = FileSync::SyncDiff::File->new(dbref => $self);
 
 		$temp_file_obj->from_hash( $row_ref->{ $id } );
 
