@@ -1,7 +1,7 @@
 Build.PL
 LICENSE
 MANIFEST			This list of files
-psync_cfg_parser.y
+syncdiff_cfg_parser.y
 README.md
 syncdiff
 SyncDiff/Client.pm
