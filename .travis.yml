@@ -6,9 +6,9 @@ install:
 script: "perl Build.PL; ./Build test"
 
 notifications:
-  recipients:
-    - glundchaix@gmail.com
-  email:
+  irc:
+    channels:
+      - "chat.freenode.net#syncdiff"
     on_success: change
     on_failure: always
 
