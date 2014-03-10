@@ -1,0 +1,14 @@
+language: "perl"
+
+install:
+  - cpanm -v --installdeps --notest .
+
+script: "perl Build.PL; ./Build test"
+
+notifications:
+  irc:
+    channels:
+      - "chat.freenode.net#syncdiff"
+    on_success: change
+    on_failure: always
+
