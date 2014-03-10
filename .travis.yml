@@ -1,5 +1,8 @@
 language: "perl"
 
+before_install:
+  - sudo apt-get install -y librsync-dev
+
 install:
   - cpanm -v --installdeps --notest .
 
@@ -11,4 +14,6 @@ notifications:
       - "chat.freenode.net#syncdiff"
     on_success: change
     on_failure: always
+    template:
+      - "%{repository} (%{commit}) : %{message} Build details: %{build_url} "
 
