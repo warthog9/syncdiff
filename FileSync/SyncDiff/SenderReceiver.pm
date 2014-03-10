@@ -125,6 +125,10 @@ sub process_request {
 		print "Debugging Recieved line\n";
 		$self->print_debug( $line );
 
+		if( ! defined $line ){
+			exit(1);
+		}
+
 		my $response = $self->_process_request( $line );
 		$self->print_debug( $response );
 
