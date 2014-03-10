@@ -7,3 +7,6 @@ MANIFEST.bak
 MANIFEST.SKIP.bak
 MYMETA.yml
 MYMETA.json
+psync*
+*.cfg
+*.sqlite
