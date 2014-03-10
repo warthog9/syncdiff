@@ -1,8 +1,10 @@
 language: "perl"
 
+before_install:
+  - sudo apt-get install -y librsync-dev
+
 install:
   - cpanm -v --installdeps --notest .
-  - sudo apt-get install -y librsync-dev
 
 script: "perl Build.PL; ./Build test"
 
