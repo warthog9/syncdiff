@@ -99,7 +99,7 @@ if( $get_help ){
 #
 
 if( ! defined $config_file ){
-	$config_file = "csync2.cfg";
+	$config_file = "syncdiff.cfg";
 }
 
 #print "---------------------------\n";
