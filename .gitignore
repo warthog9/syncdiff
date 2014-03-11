@@ -10,3 +10,4 @@ MYMETA.json
 psync*
 *.cfg
 *.sqlite
+.vagrant
