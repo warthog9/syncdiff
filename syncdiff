@@ -47,6 +47,7 @@ use FileSync::SyncDiff::DB;
 use FileSync::SyncDiff::File;
 use FileSync::SyncDiff::Server;
 use FileSync::SyncDiff::Client;
+use FileSync::SyncDiff::Notify;
 
 # Debugging includes
 use Data::Dumper;
@@ -130,6 +131,9 @@ if( $run_only_scan ){
 if( $run_as_server ){
 	my $server = FileSync::SyncDiff::Server->new( config => $config->config, dbref => $dbconnection );
 	$server->run();
+	my $inotify = FileSync::SyncDiff::Notify->new( config => $config->config );
+	$inotify->run();
+
 	exit(0);
 }
 
