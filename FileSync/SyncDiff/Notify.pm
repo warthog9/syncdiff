@@ -66,7 +66,7 @@ sub _load_linux{
 	my $self = shift;
 
 	my @dirs;
-	for my $group_data ( values $self->config->{groups} ){
+	for my $group_data ( values %{$self->config->{groups}} ){
 		push(@dirs, $group_data->{patterns});
 	}
 
