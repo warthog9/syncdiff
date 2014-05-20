@@ -100,6 +100,13 @@ sub recv_loop {
 	while( my $new_sock = $sock->accept() ){
 		my $child;
 
+		my $hostname 	= $new_sock->peerhost;
+		my $port 		= $new_sock->peerport;
+		$self->dbref->new_client({
+			hostname => $hostname,
+			port 	 => $port,
+		});
+
 		if( ( $child = fork() ) == 0 ){
 			# child process
 			#print Dumper $new_sock;
@@ -107,11 +114,16 @@ sub recv_loop {
 			$self->json( new JSON::XS );
 			$self->process_request();
 		}
-		
+
 		my $kid = undef;
 		do {
 			$kid = waitpid($child,0);
 		} while $kid > 0;
+
+		$self->dbref->delete_client({
+			hostname => $hostname,
+			port 	 => $port,
+		});
 	} # end while( $new_sock = $sock->accept() ) loop
 } # end recv_loop()
 
