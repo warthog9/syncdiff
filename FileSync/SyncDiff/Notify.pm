@@ -38,9 +38,13 @@ extends qw(FileSync::SyncDiff::Forkable);
 use Carp;
 use FileSync::SyncDiff::Notify::Plugin::Inotify2;
 use AnyEvent;
+use File::Pid;
+
 use Data::Dumper;
 
-has 'config' => (
+use constant PID_FILE => './notify.pid';
+
+has 'config_options' => (
 		is	=> 'rw',
 		isa	=> 'HashRef',
 		required => 1,
@@ -62,11 +66,11 @@ sub run {
 	$self->fork();
 }
 
-sub _load_linux{
+sub _load_linux {
 	my $self = shift;
 
 	my @dirs;
-	for my $group_data ( values %{$self->config->{groups}} ){
+	for my $group_data ( values %{$self->config_options->{groups}} ){
 		push(@dirs, $group_data->{patterns});
 	}
 
@@ -77,7 +81,25 @@ sub _load_linux{
 	        event_receiver => sub {
 	           my ($event, $file) = @_;
 	           if($event eq 'modify') {
-	           		print "modify file $file!\n";
+	           		for my $group ( keys %{$self->config_options->{groups}} ){
+		           		for my $host ( @{ $self->config_options->{groups}->{ $group }->{host} } ){
+							my $sock = new IO::Socket::INET (
+											PeerAddr => $host,
+											PeerPort => '7070',
+											Proto => 'tcp',
+											);
+							if( ! $sock ){
+								print "Could not create socket: $!\n";
+								next;
+							} # end skipping if the socket is broken
+
+							$sock->autoflush(1);
+
+							print $sock "$file IS MODIFY";
+
+							close $sock;
+		           		}
+		           	}
 	           }
 	        },
 		);
@@ -88,7 +110,15 @@ sub _load_linux{
 override 'run_child' => sub {
 	my( $self ) = @_;
 
-	print "Run child on Notify";
+	my $pid_obj = File::Pid->new({
+    	file => PID_FILE
+  	});
+
+	if( my $pid = $pid_obj->running ){
+		warn "Notifier is already running on $pid pid!";
+		exit(0);
+	}
+	$pid_obj->write or die("Can't write $!");
 
 	$self->_load_plugin();
 };
