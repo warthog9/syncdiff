@@ -172,9 +172,6 @@ sub fork_and_connect {
 		die( "Path: ". $self->groupbase_path ." does *NOT* exist in group ". $self->group ." - sadly dying now.\n" );
 	}
 
-	my $inotify = FileSync::SyncDiff::Notify->new( config_options => $self->config_options );
-	$inotify->run();
-
 	#
 	# Going chroot
 	# 	everything else we need should

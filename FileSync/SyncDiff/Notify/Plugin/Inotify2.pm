@@ -152,12 +152,4 @@ sub handle_event {
     }
 }
 
-sub DEMOLISH {
-    my $self = shift;
-
-    for my $w (values %{$self->inotify->{w}}){
-        $w->cancel;
-    }
-}
-
 1;
