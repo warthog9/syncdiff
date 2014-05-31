@@ -202,6 +202,18 @@ sub _process_request {
 		return $self->proto->getVersion();
 	}
 
+	if(
+		exists( $response->{operation} )
+		&&
+		$response->{operation} eq "request_notify"
+		&&
+		exists( $response->{group} )
+		&&
+		exists( $response->{hostname} )
+	){
+		return 0;
+	}
+
 	my $processed_response = $self->proto->server_process_request( $response );
 
 	return $processed_response;

@@ -121,7 +121,7 @@ sub _watch_dir {
         $self->watch(
             $entry->stringify,
             IN_MODIFY,
-            sub { $self->handle_event($entry, $_[0]) },
+            sub { $self->handle_event($entry, $_[0], $dir) },
         );
     }
 }
@@ -137,17 +137,15 @@ my %events = (
 );
 
 sub handle_event {
-    my ($self, $file, $event) = @_;
+    my ($self, $file, $event, $dir) = @_;
 
     my $event_file = $file->file($event->name);
 
-    for my $dir(@{$self->dirs}){
-        my $relative = $event_file->relative($dir);
-        for my $type (keys %events){
-            my $method = $events{$type};
-            if( $event->$type ){
-                $self->$method($relative);
-            }
+    my $rel = $event_file->relative($dir);
+    for my $type (keys %events){
+        my $method = $events{$type};
+        if( $event->$type ){
+            $self->$method($rel, $dir);
         }
     }
 }

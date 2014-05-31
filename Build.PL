@@ -13,7 +13,6 @@ my $builder = Module::Build->new(
         'Module::Build'             => 0.4205,
         'Moose'                     => 1.15,
         'MooseX::Types::Moose'      => 0,
-        'MooseX::FileAttribute'     => 0,   
         'Parse::Lex'                => 0,
         'DBD::SQLite'               => 1.27,
         'Digest::SHA'               => 5.47,
@@ -26,6 +25,7 @@ my $builder = Module::Build->new(
         'Linux::Inotify2'           => 0,
         'File::Next'                => 0,
         'File::Pid'                 => 0,
+        'Net::Address::IP::Local'   => 0,
     },
     meta_merge     => {
         resources => {

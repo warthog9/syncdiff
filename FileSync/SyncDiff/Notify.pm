@@ -39,6 +39,8 @@ use Carp;
 use FileSync::SyncDiff::Notify::Plugin::Inotify2;
 use AnyEvent;
 use File::Pid;
+use JSON::XS qw/encode_json/;
+use Net::Address::IP::Local;
 use sigtrap 'handler' => \&signal_handler, 'HUP', 'INT','ABRT','QUIT','TERM';
 
 use Data::Dumper;
@@ -80,10 +82,15 @@ sub _load_linux {
         my $inotify = FileSync::SyncDiff::Notify::Plugin::Inotify2->new(
         	dirs => @dirs,
 	        event_receiver => sub {
-	           my ($event, $file) = @_;
+	           my ($event, $file, $config_include) = @_;
 	           if($event eq 'modify') {
-	           		for my $group ( keys %{$self->config_options->{groups}} ){
-		           		for my $host ( @{ $self->config_options->{groups}->{ $group }->{host} } ){
+	           		while ( my($group_name, $group_data) = each(%{$self->config_options->{groups}}) ) {
+
+	           			# Need to notify only those groups which contain a true include
+	           			# for file which was modified
+	           			next if( ! grep{ $_ eq $config_include }@{ $group_data->{patterns} } );
+
+	           			for my $host ( @{ $group_data->{host} } ){
 							my $sock = new IO::Socket::INET (
 											PeerAddr => $host,
 											PeerPort => '7070',
@@ -96,11 +103,17 @@ sub _load_linux {
 
 							$sock->autoflush(1);
 
-							print $sock "$file IS MODIFY";
+							my %request = (
+								'operation'	=> 'request_notify',
+								'hostname' 	=> Net::Address::IP::Local->public,
+								'group'		=> $group_name,
+							);
+							my $json = encode_json(\%request);
+							print $sock $json;
 
 							close $sock;
 		           		}
-		           	}
+	           		}
 	           }
 	        },
 		);
