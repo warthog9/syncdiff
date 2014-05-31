@@ -131,8 +131,6 @@ if( $run_only_scan ){
 if( $run_as_server ){
 	my $server = FileSync::SyncDiff::Server->new( config => $config->config, dbref => $dbconnection );
 	$server->run();
-	my $inotify = FileSync::SyncDiff::Notify->new( config => $config->config );
-	$inotify->run();
 
 	exit(0);
 }

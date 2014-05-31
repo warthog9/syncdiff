@@ -39,6 +39,7 @@ use Carp;
 use FileSync::SyncDiff::Notify::Plugin::Inotify2;
 use AnyEvent;
 use File::Pid;
+use sigtrap 'handler' => \&signal_handler, 'HUP', 'INT','ABRT','QUIT','TERM';
 
 use Data::Dumper;
 
@@ -107,6 +108,14 @@ sub _load_linux {
 	$cv->recv;
 }
 
+sub signal_handler {
+    my $pid_obj = File::Pid->new({
+    	file => PID_FILE
+  	});
+  	$pid_obj->remove;
+  	exit(1);
+}
+
 override 'run_child' => sub {
 	my( $self ) = @_;
 
@@ -118,7 +127,7 @@ override 'run_child' => sub {
 		warn "Notifier is already running on $pid pid!";
 		exit(0);
 	}
-	$pid_obj->write or die("Can't write $!");
+	$pid_obj->write || die("Can't write $!");
 
 	$self->_load_plugin();
 };
