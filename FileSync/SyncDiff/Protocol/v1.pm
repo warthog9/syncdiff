@@ -189,7 +189,7 @@ sub get_updates_from_remote {
 
 		my $temp_file = FileSync::SyncDiff::File->new(dbref => $self->dbref );
 		$temp_file->from_hash( $response->{$id} );	
-
+		
 		print "Before fork:\n";
 		print Dumper $temp_file;
 
@@ -203,6 +203,21 @@ sub get_updates_from_remote {
 			$x = $x + 1;
 			next;
 		}
+		
+		# Check if the file is already present
+		my @file_already_present_data = $self->$dbref->is_file_already_present($temp_file->checksum);
+		if ($file_already_present_data[0]) {
+			print "File already present on client side. Copying existing file instead of transferring from remote server\n";
+			my $old_file_path = $file_already_present_data[1][0];
+			$self->sync_local_file($temp_file->path, $temp_file->filename, $temp_file->filepath, $old_file_path);
+			next;
+		}
+
+		# Check if the file is soft deleted
+		if ($self->$dbref->is_file_soft_deleted($temp_file->checksum)) {
+			next;
+		}
+		
 
 		if ($temp_file->deleted) {
 			$temp_file->{syncbase} = $self->groupbase;
@@ -304,6 +319,18 @@ sub get_updates_from_remote {
 	} #end foreach response I.E. files
 
 } # end get_updates_from_remote()
+
+sub sync_local_file {
+	my ($self, $path, $filename, $filepath, $old_path) = @_;
+
+	if ( ! -d $path ){
+		print "Making directory: ". $path . "\n";
+		make_path($path, {verbose => 1, } );
+	}
+	
+	copy($old_path, $path) or die "Local sync failed $!";
+	
+} # end sync_local_file
 
 sub sync_file {
 	my( $self, $path, $filename, $filepath, $checksum, $last_transaction ) = @_;

@@ -292,6 +292,14 @@ sub process_request {
 		return $self->_delete_file( $request->{file} );
 	}
 
+	if( $request->{operation} eq "is_file_already_present"){
+		return $self->_is_file_already_present();
+	}
+
+	if ( $request->{operation} eq "is_file_soft_deleted"){
+		return $self->_is_file_soft_deleted();
+	}
+
 } # end process_request()
 
 sub clean_stop {
@@ -1119,6 +1127,34 @@ sub _get_files_changed_since {
 	#return \@return_array;
 	return \%return_hash;
 } # end _get_files_changed_since()
+
+sub is_file_already_present {
+	my( $self, $file_checksum ) = @_;
+	
+	my %request = (
+			operation => 'is_file_already_present',
+			file_checksum => $file_checksum,
+	);
+
+	my $response = $self->send_request( %request );
+
+	return $response;
+} # end is_file_already_present
+
+sub _is_file_already_present {
+	my ( $self, $file_checksum) = @_;
+	my $dbh = $self->dbh;
+
+	my $sql = "SELECT * FROM files WHERE checksum=?";
+
+	my $sth = $dbh->prepare($sql);
+	$sth->execute($file_checksum);
+	
+	my @row = $sth->fetchrow_array();
+	my @return_array = ($sth->rows, @row);
+	
+	return \@return_array;
+} # end _is_file_already_present
 
 #no moose;
 __PACKAGE__->meta->make_immutable;
