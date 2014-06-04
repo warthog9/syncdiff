@@ -204,7 +204,7 @@ sub get_updates_from_remote {
 		}
 		
 		# Check if the file is already present
-		my @file_already_present_data = $self->$dbref->is_file_already_present($temp_file->checksum);
+		my @file_already_present_data = $self->dbref->is_file_already_present($temp_file->checksum);
 		if ($file_already_present_data[0]) {
 			print "File already present on client side. Copying existing file instead of transferring from remote server\n";
 			my $old_file_path = $file_already_present_data[1][0];
@@ -213,7 +213,7 @@ sub get_updates_from_remote {
 		}
 
 		# Check if the file is soft deleted
-		if ($self->$dbref->is_file_soft_deleted($temp_file->checksum)) {
+		if ($self->dbref->is_file_soft_deleted($temp_file->checksum)) {
 			next;
 		}
 		
