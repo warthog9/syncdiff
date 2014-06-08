@@ -81,7 +81,7 @@ has 'inotify' => (
 sub _build_inotify {
     my $self = shift;
 
-    Linux::Inotify2->new or confess "Inotify initialization failed: $!";
+    Linux::Inotify2->new || confess "Inotify initialization failed: $!";
 }
 
 has 'io_watcher' => (

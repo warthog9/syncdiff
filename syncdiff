@@ -73,12 +73,10 @@ my $run_as_server;
 my $get_version;
 my $get_help;
 my $run_only_scan;
-my $run_notify;
 GetOptions (
 		"c|config=s"	=> \$config_file,      # string
 		"s|server"	=> \$run_as_server,
 		"scan"		=> \$run_only_scan,
-		"notify"	=> \$run_notify,
 		"v|version"	=> \$get_version,
 		"h|?|help"	=> \$get_help,
 	   );
@@ -125,6 +123,9 @@ $dbconnection->file( "psync.sqlite" );
 
 $dbconnection->connect_and_fork();
 
+my $inotify = FileSync::SyncDiff::Notify->new( config_options => $config->config );
+$inotify->run();
+
 if( $run_only_scan ){
 	FileSync::SyncDiff::Scanner->full_scan( $config, $dbconnection );
 	exit(0);
@@ -137,12 +138,7 @@ if( $run_as_server ){
 	exit(0);
 }
 
-if( $run_notify ){
-	my $inotify = FileSync::SyncDiff::Notify->new( config_options => $config->config );
-	$inotify->run();
-
-	exit(0);
-}
+$inotify->stop;
 
 #print Dumper $config->config;
 
@@ -156,6 +152,8 @@ foreach $group_name ( keys %{ $config->config->{groups} } ){
 		$client->fork_and_connect();
 	} # end base foreach
 } # end group_name foreach
+
+$inotify->start;
 
 #my $config = FileSync::SyncDiff::Config->new();
 #
