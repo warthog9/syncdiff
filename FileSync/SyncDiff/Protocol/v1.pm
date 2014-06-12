@@ -189,7 +189,7 @@ sub get_updates_from_remote {
 
 		my $temp_file = FileSync::SyncDiff::File->new(dbref => $self->dbref );
 		$temp_file->from_hash( $response->{$id} );	
-		
+
 		print "Before fork:\n";
 		print Dumper $temp_file;
 
@@ -206,10 +206,10 @@ sub get_updates_from_remote {
 		
 		# Check if the file is already present
 		my @file_already_present_data = $self->dbref->is_file_already_present($temp_file->checksum);
-		if ($file_already_present_data[0]) {
+		if ($file_already_present_data[0]) {		# check if the file with same checksum exists using boolean value at 0th index
 			print "File already present on client side. Copying existing file instead of transferring from remote server\n";
-			my $old_file_path = $file_already_present_data[1][0];
-			$self->sync_local_file($temp_file->path, $temp_file->filename, $temp_file->filepath, $old_file_path);
+			my $old_file_path = $file_already_present_data[1][0];	# take the first file from array of returned files with same checksum
+			$self->sync_local_file($temp_file->path, $temp_file->filename, $temp_file->filepath, $temp_file->mode, $old_file_path);
 			next;
 		}
 
@@ -321,7 +321,7 @@ sub get_updates_from_remote {
 } # end get_updates_from_remote()
 
 sub sync_local_file {
-	my ($self, $path, $filename, $filepath, $old_path) = @_;
+	my ($self, $path, $filename, $filepath, $mode, $old_path) = @_;
 
 	if ( ! -d $path ){
 		print "Making directory: ". $path . "\n";
@@ -329,6 +329,7 @@ sub sync_local_file {
 	}
 	
 	copy($old_path, $path) or die "Local sync failed $!";
+	chmod($mode & 07777, $path) or die "Failed to change permissions of copied file";
 	
 } # end sync_local_file
 
