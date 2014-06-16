@@ -211,6 +211,20 @@ sub _process_request {
 		&&
 		exists( $response->{hostname} )
 	){
+		my $inotify = FileSync::SyncDiff::Notify->new( config_options => $config->config );
+		inotify->run();
+		$inotify->stop();
+
+		my $group_name = $response->{group};
+		foreach $base ( @{ $config->config->{groups}->{$group_name}->{patterns} } ){
+			my $client = FileSync::SyncDiff::Client->new( config_options => $config->get_group_config( $group_name ), group => $group_name, groupbase => $base, groupbase_path => $config->get_truepath( $base ), dbref => $dbconnection );
+
+			client->fork_and_connect();
+
+		} # end base foreach
+
+		$inotify->start();
+
 		return 0;
 	}
 

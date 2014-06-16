@@ -39,13 +39,17 @@ use Carp qw(cluck confess);
 use FileSync::SyncDiff::Notify::Plugin::Inotify2;
 use AnyEvent;
 use File::Pid;
-use JSON::XS qw/encode_json/;
+use JSON::XS qw(encode_json);
 use Net::Address::IP::Local;
+use File::Spec::Functions qw(catfile);
+use IPC::ShareLite qw();
+
 use sigtrap 'handler' => \&_kill_handler, 'HUP', 'INT','ABRT','QUIT','TERM';
 
 use Data::Dumper;
 
-use constant PID_FILE => './notify.pid';
+use constant PID_FILE => 'notify.pid';
+use constant PID_DIR  => '/var/run/';
 
 has 'config_options' => (
         is  => 'rw',
@@ -66,19 +70,64 @@ sub _load_plugin {
 sub run {
     my $self = shift;
 
+    if ( my $pid =  $self->is_alive() ){
+        print "Notifier is already running with $pid pid!";
+        return;
+    }
+
+    $self->start();
+
     $self->fork();
 }
 
 sub stop {
     my $self = shift;
 
-    kill 'STOP', $self->pid;
+    my $is_running = 0;
+    my $share = IPC::ShareLite->new(
+        -key     => 'key',
+        -create  => 'no',
+        -destroy => 'no'
+    ) or confess $!;
+ 
+    $share->store( $is_running );
+
+    return $is_running;
 }
 
 sub start {
     my $self = shift;
 
-    kill 'CONT', $self->pid;
+    my $is_running = 1;
+    my $share = IPC::ShareLite->new(
+        -key     => 'key',
+        -create  => 'yes',
+        -destroy => 'no'
+    ) or confess $!;
+ 
+    $share->store( $is_running );
+
+    return $is_running;
+}
+
+sub is_running {
+    my $share = IPC::ShareLite->new(
+        -key     => 'key',
+        -create  => 'no',
+        -destroy => 'no'
+    ) or confess $!;
+ 
+    return $share->fetch();
+}
+
+sub is_alive {
+    my $self = shift;
+
+    my $pid_obj = File::Pid->new({
+        file => catfile(PID_DIR, PID_FILE)
+    });
+
+    return $pid_obj->_get_pid_from_file();
 }
 
 sub _load_linux {
@@ -96,6 +145,11 @@ sub _load_linux {
             event_receiver => sub {
                my ($event, $file, $config_include) = @_;
                if($event eq 'modify') {
+                    # Notify daemon was stopped
+                    return if ( ! $self->is_running() );
+
+                    print Dumper $event;
+
                     while ( my($group_name, $group_data) = each(%{$self->config_options->{groups}}) ) {
 
                         # Need to notify only those groups which contain a true include
@@ -135,7 +189,7 @@ sub _load_linux {
 
 sub _kill_handler {
     my $pid_obj = File::Pid->new({
-        file => PID_FILE
+        file => catfile(PID_DIR, PID_FILE)
     });
     $pid_obj->remove;
     exit(1);
@@ -144,11 +198,11 @@ sub _kill_handler {
 sub _daemonize {
     my $self = shift;
     my $pid_obj = File::Pid->new({
-        file => PID_FILE
+        file => catfile(PID_DIR, PID_FILE)
     });
 
-    if( my $pid = $pid_obj->running ){
-        cluck "Notifier is already running with $pid pid!";
+    if( my $pid = $pid_obj->_get_pid_from_file() ){
+        print "Notifier is already running with $pid pid!";
         exit(0);
     }
     $pid_obj->write || confess("Can't write $!");
@@ -160,6 +214,8 @@ override 'run_child' => sub {
     my( $self ) = @_;
 
     $self->_daemonize();
+
+    # $self->start();
 
     $self->_load_plugin();
 };
