@@ -26,6 +26,7 @@ my $builder = Module::Build->new(
         'File::Next'                => 0,
         'File::Pid'                 => 0,
         'Net::Address::IP::Local'   => 0,
+        'IPC::ShareLite'            => 0,
     },
     meta_merge     => {
         resources => {
