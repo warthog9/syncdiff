@@ -29,6 +29,8 @@
 ###########################################################################
 
 # Standard includes:
+use strict;
+use warnings;
 use Getopt::Long;
 Getopt::Long::Configure(
 			qw(
@@ -132,7 +134,7 @@ if( $run_only_scan ){
 } # end if( $run_only_scan )
 
 if( $run_as_server ){
-	my $server = FileSync::SyncDiff::Server->new( config => $config->config, dbref => $dbconnection );
+	my $server = FileSync::SyncDiff::Server->new( config => $config, dbref => $dbconnection );
 	$server->run();
 
 	exit(0);
@@ -142,10 +144,10 @@ $inotify->stop;
 
 #print Dumper $config->config;
 
-foreach $group_name ( keys %{ $config->config->{groups} } ){
+foreach my $group_name ( keys %{ $config->config->{groups} } ){
 	print "Main client loop - group: ". $group_name ."\n";
 
-	foreach $base ( @{ $config->config->{groups}->{$group_name}->{patterns} } ){
+	foreach my $base ( @{ $config->config->{groups}->{$group_name}->{patterns} } ){
 
 		my $client = FileSync::SyncDiff::Client->new( config_options => $config->get_group_config( $group_name ), group => $group_name, groupbase => $base, groupbase_path => $config->get_truepath( $base ), dbref => $dbconnection );
 
