@@ -303,6 +303,8 @@ sub sync_file {
 	my $sig_buffer = undef;
 	my $basis = undef;
 	my $sig = undef;
+	my $dbref = $self->dbref;
+	my $new_file_flag = 0;
 
 	print "Going to sync the file $filepath\n";
 
@@ -331,6 +333,7 @@ sub sync_file {
 	if( ! -e $filepath ){
 		open HANDLE, ">>$filepath" or die "touch $filepath: $!\n"; 
 		close HANDLE;
+		$new_file_flag = 1;
 	}
 
 	open $basis, "<", $filepath or die "$filepath - $!";
@@ -477,6 +480,13 @@ sub sync_file {
 	}
 
 	move( $new_path, $filepath );
+
+	if ($new_file_flag) {
+		$dbref->add_file($new_file_obj);
+	}
+	else {
+		$dbref->update_file($new_file_obj);
+	}
 
 } # end sync_file
 
