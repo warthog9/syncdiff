@@ -337,6 +337,8 @@ sub create_database {
 
 	$dbh->do("CREATE TABLE servers_seen (id INTEGER PRIMARY KEY AUTOINCREMENT, hostname TEXT unique, transactionid TEXT, 'group' TEXT, timeadded INTEGER)");
 
+	$dbh->do("CREATE TABLE if not exists soft_deleted_files (id INTEGER PRIMARY KEY AUTOINCREMENT, checksum TEXT, soft_deleted_since INTEGER)");
+
 	my $transaction_id = sha256_hex( hostname() ."-". $$ ."-". time() );
 
 	print Dumper $self->config->config;
@@ -1101,6 +1103,40 @@ sub _is_file_already_present {
 	
 	return \@return_array;
 } # end _is_file_already_present
+
+sub is_file_soft_deleted {
+	my( $self, $file_checksum ) = @_;
+
+	my %request = (
+			operation => 'is_file_soft_deleted',
+			file_checksum => $file_checksum,
+	);
+
+	my $response = $self->send_request( %request );
+
+	return $response;
+} # end is_file_soft_deleted
+
+sub _is_file_soft_deleted {
+	my ($self, $file_checksum) = @_;
+	my $row_count = 0;
+
+	if ( -e "./softDeleted/" . $file_checksum) {			# keeping a default path temporarily
+		my $new_file_obj = FileSync::SyncDiff::File->new(dbref => $self->dbref);
+		$new_file_obj->get_file( "./softDeleted/" . $file_checksum, "", "");
+		$new_file_obj->checksum_file();
+		$file_new_checksum = $new_file_obj->checksum;
+
+		if ($file_new_checksum == $file_checksum) {
+			my $dbh = $self->dbh;
+			my $sql = "SELECT * FROM soft_deleted_files WHERE checksum=?";
+			my $sth = $dbh->prepare($sql);
+			$sth->execute($file_checksum);
+			$row_count = $sth->rows;
+		}
+	}
+	return $row_count;
+} # end _is_file_soft_deleted
 
 #no moose;
 __PACKAGE__->meta->make_immutable;
