@@ -1,0 +1,14 @@
+DB.pm:	my $fileobj = FileSync::SyncDiff::File->new( dbref => $self );
+DB.pm:		my $fileobj = FileSync::SyncDiff::File->new( dbref => $self );
+DB.pm:#		my $fileobj = FileSync::SyncDiff::File->new( dbref => $self );
+DB.pm:	my $file_obj = FileSync::SyncDiff::File->new(dbref => $self );
+DB.pm:	my $file_obj = FileSync::SyncDiff::File->new(dbref => $self );
+DB.pm:	my $file_obj = FileSync::SyncDiff::File->new(dbref => $self );
+DB.pm:		my $temp_file_obj = FileSync::SyncDiff::File->new(dbref => $self);
+File.pm:#	print "~~~ File->parse_dbrow()\n";
+Binary file Protocol/.v1.pm.swp matches
+Protocol/v1.pm:		my $temp_file = FileSync::SyncDiff::File->new(dbref => $self->dbref );
+Protocol/v1.pm:			my $new_file_obj = FileSync::SyncDiff::File->new(dbref => $self->dbref);
+Protocol/v1.pm:	my $new_file_obj = FileSync::SyncDiff::File->new(dbref => $self->dbref);
+Scanner.pm:	my $found_file_obj = FileSync::SyncDiff::File->new(dbref => $self->dbref);
+Scanner.pm:	my $lookup_file_obj = FileSync::SyncDiff::File->new(dbref => $self->dbref );
