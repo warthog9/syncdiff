@@ -125,7 +125,7 @@ $dbconnection->file( "psync.sqlite" );
 
 $dbconnection->connect_and_fork();
 
-my $inotify = FileSync::SyncDiff::Notify->new( config_options => $config->config );
+my $inotify = FileSync::SyncDiff::Notify->new( config => $config, dbref => $dbconnection );
 $inotify->run();
 
 if( $run_only_scan ){

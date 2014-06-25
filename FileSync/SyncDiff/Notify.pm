@@ -35,8 +35,11 @@ use Moose;
 
 extends qw(FileSync::SyncDiff::Forkable);
 
-use Carp qw(cluck confess);
 use FileSync::SyncDiff::Notify::Plugin::Inotify2;
+use FileSync::SyncDiff::Scanner;
+use FileSync::SyncDiff::Config;
+
+use Carp qw(cluck confess);
 use AnyEvent;
 use File::Pid;
 use JSON::XS qw(encode_json);
@@ -51,11 +54,17 @@ use Data::Dumper;
 use constant PID_FILE => 'notify.pid';
 use constant PID_DIR  => '/var/run/';
 
-has 'config_options' => (
+has 'config' => (
         is  => 'rw',
-        isa => 'HashRef',
+        isa => 'FileSync::SyncDiff::Config',
         required => 1,
-);
+        );
+
+has 'dbref' => (
+        is  => 'rw',
+        isa => 'Object',
+        required => 1,
+        );
 
 sub _load_plugin {
     my $self = shift;
@@ -134,7 +143,7 @@ sub _load_linux {
     my $self = shift;
 
     my @dirs;
-    for my $group_data ( values %{$self->config_options->{groups}} ){
+    for my $group_data ( values %{$self->config->config->{groups}} ){
         push(@dirs, $group_data->{patterns});
     }
 
@@ -143,18 +152,25 @@ sub _load_linux {
         my $inotify = FileSync::SyncDiff::Notify::Plugin::Inotify2->new(
             dirs => @dirs,
             event_receiver => sub {
-               my ($event, $file, $config_include) = @_;
+               my ($event, $file, $groupbase) = @_;
                if($event eq 'modify') {
                     # Notify daemon was stopped
                     return if ( ! $self->is_running() );
 
                     print Dumper $event;
 
-                    while ( my($group_name, $group_data) = each(%{$self->config_options->{groups}}) ) {
+                    while ( my($group_name, $group_data) = each(%{$self->config->config->{groups}}) ) {
+
+                        # scanning a new changes
+                        my $scanner = FileSync::SyncDiff::Scanner->new(
+                                group => $group_name,
+                                groupbase => $groupbase,
+                                dbref => $self->dbref);
+                        $scanner->fork_and_scan();
 
                         # Need to notify only those groups which contain a true include
                         # for file which was modified
-                        next if( ! grep{ $_ eq $config_include }@{ $group_data->{patterns} } );
+                        next if( ! grep{ $_ eq $groupbase }@{ $group_data->{patterns} } );
 
                         for my $host ( @{ $group_data->{host} } ){
                             my $sock = new IO::Socket::INET (
