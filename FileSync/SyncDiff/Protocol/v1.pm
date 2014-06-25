@@ -161,6 +161,54 @@ sub client_run {
 	}
 } # end client_run()
 
+sub _lock {
+    my ($self, $file_path) = @_;
+    my $share = IPC::ShareLite->new(
+        -key     => 'syncccc',
+        -create  => 'yes',
+        -destroy => 'no'
+    ) || confess $!;
+
+    print STDERR "LOCKING\n";
+
+    my $lock_client = 1;
+
+    return $share->store( $lock_client );
+}
+
+sub _unlock {
+    my ($self, $file_path) = @_;
+    my $share = IPC::ShareLite->new(
+        -key     => 'syncccc',
+        -create  => 'no',
+        -destroy => 'no'
+    ) || confess $!;
+
+    print STDERR "UNLOCKING\n";
+
+    my $lock_client = 0;
+
+    return $share->store( $lock_client );
+}
+
+sub _is_lock {
+    my ($self, $file_path) = @_;
+    my $share;
+    eval {
+        $share = IPC::ShareLite->new(
+            -key     => 'syncccc',
+            -create  => 'no',
+            -destroy => 'no'
+        );
+    } || return;
+
+    my $lock_client = $share->fetch();
+
+    print STDERR "IS LOCKING $lock_client";
+
+    return $lock_client;
+}
+
 sub get_updates_from_remote {
 	my( $self, $remote_previous_log_position ) = @_;
 	
