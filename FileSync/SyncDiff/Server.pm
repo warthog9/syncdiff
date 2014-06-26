@@ -214,7 +214,7 @@ sub _process_request {
 		&&
 		exists( $response->{hostname} )
 	){
-		my $inotify = FileSync::SyncDiff::Notify->new( config_options => $self->config->config );
+		my $inotify = FileSync::SyncDiff::Notify->new( config => $self->config );
 		$inotify->run();
 		$inotify->stop();
 

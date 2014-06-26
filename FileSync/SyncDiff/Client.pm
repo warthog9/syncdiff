@@ -258,14 +258,14 @@ sub fork_and_connect {
 
 		if( !$protocol_obj->_is_lock ){
 			# locking client
-    		$self->_lock();
+    		$protocol_obj->_lock();
 
     		eval{
 				$protocol_obj->client_run();
 			};
 
 			# unlocking client
-    		$self->_unlock();
+    		$protocol_obj->_unlock();
 		}
 
 		close( $sock );

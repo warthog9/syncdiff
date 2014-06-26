@@ -164,7 +164,7 @@ sub client_run {
 sub _lock {
     my ($self, $file_path) = @_;
     my $share = IPC::ShareLite->new(
-        -key     => 'syncccc',
+        -key     => 'sync',
         -create  => 'yes',
         -destroy => 'no'
     ) || confess $!;
@@ -179,7 +179,7 @@ sub _lock {
 sub _unlock {
     my ($self, $file_path) = @_;
     my $share = IPC::ShareLite->new(
-        -key     => 'syncccc',
+        -key     => 'sync',
         -create  => 'no',
         -destroy => 'no'
     ) || confess $!;
@@ -196,7 +196,7 @@ sub _is_lock {
     my $share;
     eval {
         $share = IPC::ShareLite->new(
-            -key     => 'syncccc',
+            -key     => 'sync',
             -create  => 'no',
             -destroy => 'no'
         );
