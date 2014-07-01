@@ -35,7 +35,6 @@ use Moose;
 
 extends qw(FileSync::SyncDiff::Forkable);
 
-use FileSync::SyncDiff::Notify::Plugin::Inotify2;
 use FileSync::SyncDiff::Scanner;
 use FileSync::SyncDiff::Config;
 
@@ -70,6 +69,7 @@ sub _load_plugin {
     my $self = shift;
 
     if ( $^O eq 'linux' ) {
+        require FileSync::SyncDiff::Notify::Plugin::Inotify2;
         $self->_load_linux();
     }
 

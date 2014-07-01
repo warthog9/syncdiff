@@ -22,11 +22,11 @@ my $builder = Module::Build->new(
         'File::Rdiff'               => 1.0,
         'JSON::XS'                  => 2.27,
         'AnyEvent'                  => 0,
-        'Linux::Inotify2'           => 0,
         'File::Next'                => 0,
         'File::Pid'                 => 0,
         'Net::Address::IP::Local'   => 0,
         'IPC::ShareLite'            => 0,
+        'MooseX::FileAttribute'     => 0,
     },
     meta_merge     => {
         resources => {
@@ -35,6 +35,13 @@ my $builder = Module::Build->new(
     },
     test      => {TESTS => 't/*.t'}
 );
+
+if ( $^O eq 'linux' ) {
+    $builder->requires('Linux::Inotify2' => 0);
+}
+elsif ( $^O eq 'freebsd' ) {
+    $builder->requires('IO::KQueue' => 0);
+}
 
 $builder->create_build_script();
 print "Have a great day!\n";
