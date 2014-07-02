@@ -209,14 +209,14 @@ sub get_updates_from_remote {
 		if ($file_already_present_data[0]) {		# check if the file with same checksum exists using boolean value at 0th index
 			print "File already present on client side. Copying existing file instead of transferring from remote server\n";
 			my $old_file_path = $file_already_present_data[1][0];	# take the first file from array of returned files with same checksum
-			$self->sync_local_file($temp_file->path, $temp_file->filename, $temp_file->filepath, $temp_file->mode, $old_file_path, 0);
+			$self->sync_local_file($temp_file, $old_file_path, 0);	# last argument 0 denotes copying
 			next;
 		}
 
 		# Check if the file is soft deleted
 		if ($self->dbref->is_file_soft_deleted($temp_file->checksum)) {
-			$self->sync_local_file($temp_file->path, $temp_file->filename, $temp_file->filepath, $temp_file->mode, "./softDeleted" . $temp_file->checksum, 1);
-			
+			print "File is soft-deleted on client side. Copying the soft-deleted file instead of remote transfer\n";
+			$self->sync_local_file($temp_file, "./softDeleted" . $temp_file->checksum, 1);	# last argument 1 denotes moving
 			next;
 		}
 		
@@ -323,18 +323,26 @@ sub get_updates_from_remote {
 } # end get_updates_from_remote()
 
 sub sync_local_file {
-	my ($self, $path, $filename, $filepath, $mode, $old_path, $move) = @_;
+	my ($self, $temp_file, $old_path, $moveFlag) = @_;
+
+	my $path = $temp_file->path;
+	my $filename = $temp_file->filename;
+	my $filepath = $temp_file->filepath();
+	my $mode = $temp_file->mode;
+	my $dbref = $self->dbref;
 
 	if ( ! -d $path ){
 		print "Making directory: ". $path . "\n";
 		make_path($path, {verbose => 1, } );
 	}
 	
-	copy($old_path, $path) or die "Local sync failed $!";
-	chmod($mode & 07777, $path) or die "Failed to change permissions of copied file";
+	copy($old_path, $filepath) or die "Local sync failed $!";
+	chmod($mode & 07777, $filepath) or die "Failed to change permissions of copied file";
+	$dbref->add_or_update_file($temp_file);
 
-	if ($move) {
+	if ($moveFlag) {
 		unlink $old_path or die "Could not unlink $old_path during local sync: $!";
+		$dbref->remove_soft_delete_entry($temp_file->checksum);
 	}
 	
 } # end sync_local_file

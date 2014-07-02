@@ -293,13 +293,20 @@ sub process_request {
 	}
 
 	if( $request->{operation} eq "is_file_already_present"){
-		return $self->_is_file_already_present();
+		return $self->_is_file_already_present( $request->{file_checksum} );
 	}
 
 	if ( $request->{operation} eq "is_file_soft_deleted"){
-		return $self->_is_file_soft_deleted();
+		return $self->_is_file_soft_deleted( $request->{file_checksum} );
 	}
 
+	if ( $request->{operation} eq "add_or_update_file"){
+		return $self->_add_or_update_file( $request->{file} );
+	}
+
+	if ( $request->{operation} eq "remove_soft_delete_entry"){
+		return $self->_remove_soft_delete_entry( $request->{file_checksum} );
+	}
 } # end process_request()
 
 sub clean_stop {
@@ -1191,6 +1198,64 @@ sub _is_file_soft_deleted {
 	}
 	return $row_count;
 } # end _is_file_soft_deleted
+
+sub add_or_update_file {
+	my ($self, $file) = @_;
+
+	my %file_hash = $file->to_hash();
+
+	my %request = (
+			operation => 'add_or_update_file',
+			file => \%file_hash,
+	);
+
+	my $response = $self->send_request( %request );
+} # end add_or_update_file
+
+sub _add_or_update_file {
+	my ($self, $file) = @_;
+
+	my $file_obj = FileSync::SyncDiff::File->new(dbref => $self );
+	$file_obj->from_hash( $file );
+
+	my $dbh = $self->dbh;
+	my $sql = "SELECT * FROM files WHERE filepath=? and syncgroup=? and syncbase=?";
+	my $sth = $dbh->prepare($sql);
+	$sth->execute(
+		$file_obj->filepath,
+		$file_obj->syncgroup,
+		$file_obj->syncbase
+		);
+	my $row_count = $sth->rows;
+
+	if ($row_count == 0) {
+		$self->add_file($file_obj);
+	}
+	else {
+		$self->update_file($file_obj);
+	}
+} # end _add_or_update_file
+
+sub remove_soft_delete_entry {
+	my ($self, $file_checksum) = @_;
+
+	my %request = (
+			operation => 'remove_soft_delete_entry',
+			file_checksum => $file_checksum,
+	);
+
+	my $response = $self->send_request( %request );
+} # end remove_soft_delete_entry
+
+sub _remove_soft_delete_entry {
+	my ($self, $file_checksum) = @_;
+
+	my $dbh = $self->dbh;
+	my $sql = "DELETE from soft_deleted_files WHERE checksum=?";
+	my $sth = $dbh->prepare($sql);
+	$sth->execute($file_checksum);
+
+} # _remove_soft_delete_entry
 
 #no moose;
 __PACKAGE__->meta->make_immutable;
