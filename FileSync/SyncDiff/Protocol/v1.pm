@@ -203,23 +203,6 @@ sub get_updates_from_remote {
 			$x = $x + 1;
 			next;
 		}
-		
-		# Check if the file is already present
-		my @file_already_present_data = $self->dbref->is_file_already_present($temp_file->checksum);
-		if ($file_already_present_data[0]) {		# check if the file with same checksum exists using boolean value at 0th index
-			print "File already present on client side. Copying existing file instead of transferring from remote server\n";
-			my $old_file_path = $file_already_present_data[1][0];	# take the first file from array of returned files with same checksum
-			$self->sync_local_file($temp_file, $old_file_path, 0);	# last argument 0 denotes copying
-			next;
-		}
-
-		# Check if the file is soft deleted
-		if ($self->dbref->is_file_soft_deleted($temp_file->checksum)) {
-			print "File is soft-deleted on client side. Copying the soft-deleted file instead of remote transfer\n";
-			$self->sync_local_file($temp_file, "./softDeleted" . $temp_file->checksum, 1);	# last argument 1 denotes moving
-			next;
-		}
-		
 
 		if ($temp_file->deleted) {
 			$temp_file->{syncbase} = $self->groupbase;
@@ -262,6 +245,23 @@ sub get_updates_from_remote {
 			#if( -e $temp_file->filepath ){
 				#file exists, we should compare things before we get too far here.... *BUT* I don't want to deal with that code quite yet
 			#}
+
+			# Check if the file is already present somewhere else
+			my @file_already_present_data = $self->dbref->is_file_already_present($temp_file->checksum);
+			if ($file_already_present_data[0]) {		# check if the file with same checksum exists using boolean value at 0th index
+				print "File already present on client side. Copying existing file instead of transferring from remote server\n";
+				my $old_file_path = $file_already_present_data[1][0];	# take the first file from array of returned files with same checksum
+				$self->sync_local_file($temp_file, $old_file_path, 0);	# last argument 0 denotes copying
+				next;
+			}
+
+			# Check if the file is soft deleted
+			if ($self->dbref->is_file_soft_deleted($temp_file->checksum)) {
+				print "File is soft-deleted on client side. Copying the soft-deleted file instead of remote transfer\n";
+				$self->sync_local_file($temp_file, "./softDeleted" . $temp_file->checksum, 1);	# last argument 1 denotes moving
+				next;
+			}
+
 			if( $temp_file->filetype eq "file" ){
 				$self->sync_file( $temp_file->path, $temp_file->filename, $temp_file->filepath, $temp_file->checksum, $temp_file->last_transaction);
 			}
@@ -313,6 +313,12 @@ sub get_updates_from_remote {
 			}
 			#exit();
 		}
+
+		if ( $temp_file->deleted ) {
+			delete_file($temp_file);
+			next;
+		}
+
 		print "--------------------------------------------------------------\n";
 		print "***                  NEXT FILE                             ***\n";
 		printf("***                  %3d/%3d                               ***\n", $x, $num_keys);
@@ -321,6 +327,15 @@ sub get_updates_from_remote {
 	} #end foreach response I.E. files
 
 } # end get_updates_from_remote()
+
+sub delete_file {
+	my ($self, $temp_file) = @_;
+	my $dbref = $self->dbref;
+
+	move($temp_file->filepath, "./syncdiff/".$temp_file->checksum);
+	$dbref->mark_deleted($temp_file);
+	$dbref->add_soft_delete_entry($temp_file->checksum);
+}
 
 sub sync_local_file {
 	my ($self, $temp_file, $old_path, $moveFlag) = @_;
