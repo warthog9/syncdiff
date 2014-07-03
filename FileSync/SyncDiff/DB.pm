@@ -303,6 +303,11 @@ sub process_request {
 	if ( $request->{operation} eq "remove_soft_delete_entry"){
 		return $self->_remove_soft_delete_entry( $request->{file_checksum} );
 	}
+
+	if ( $request->{operation} eq "add_soft_delete_entry"){
+		return $self->_add_soft_delete_entry( $request->{file_checksum} );
+	}
+
 } # end process_request()
 
 sub clean_stop {
@@ -1202,6 +1207,28 @@ sub _remove_soft_delete_entry {
 	$sth->execute($file_checksum);
 
 } # _remove_soft_delete_entry
+
+sub add_soft_delete_entry {
+	my ($self, $file_checksum) = @_;
+
+	my %request = (
+			operation => 'add_soft_delete_entry',
+			file_checksum => $file_checksum,
+	);
+
+	my $response = $self->send_request( %request );
+} # add_soft_delete_entry
+
+sub _add_soft_delete_entry {
+	my ($self, $file_checksum) = @_;
+
+	_remove_soft_delete_entry($file_checksum);	# remove the entry if already present
+
+	my $dbh = $self->dbh;
+	my $sql = "INSERT into soft_deleted_files (checksum, soft_deleted_since) values (?, strftime('%s','now'))";
+	my $sth = $dbh->prepare($sql);
+	$sth->execute($file_checksum);
+}
 
 #no moose;
 __PACKAGE__->meta->make_immutable;
