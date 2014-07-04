@@ -260,9 +260,7 @@ sub fork_and_connect {
 			# locking client
     		$protocol_obj->_lock();
 
-    		eval{
-				$protocol_obj->client_run();
-			};
+			$protocol_obj->client_run();
 
 			# unlocking client
     		$protocol_obj->_unlock();

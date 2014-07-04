@@ -79,12 +79,12 @@ sub _load_plugin {
 sub run {
     my $self = shift;
 
+    $self->start();
+
     if ( my $pid =  $self->is_alive() ){
         print "Notifier is already running with $pid pid!";
         return;
     }
-
-    $self->start();
 
     $self->fork();
 }
@@ -93,11 +93,14 @@ sub stop {
     my $self = shift;
 
     my $is_running = 0;
-    my $share = IPC::ShareLite->new(
-        -key     => 'key',
-        -create  => 'no',
-        -destroy => 'no'
-    ) or confess $!;
+    my $share;
+    eval {
+        $share = IPC::ShareLite->new(
+            -key     => 'key',
+            -create  => 'no',
+            -destroy => 'no'
+        );
+    } || return;
  
     $share->store( $is_running );
 
@@ -112,7 +115,7 @@ sub start {
         -key     => 'key',
         -create  => 'yes',
         -destroy => 'no'
-    ) or confess $!;
+    ) || confess $!;
  
     $share->store( $is_running );
 
@@ -120,11 +123,14 @@ sub start {
 }
 
 sub is_running {
-    my $share = IPC::ShareLite->new(
-        -key     => 'key',
-        -create  => 'no',
-        -destroy => 'no'
-    ) or confess $!;
+    my $share;
+    eval {
+        $share = IPC::ShareLite->new(
+            -key     => 'key',
+            -create  => 'no',
+            -destroy => 'no'
+        );
+    } || return;
  
     return $share->fetch();
 }

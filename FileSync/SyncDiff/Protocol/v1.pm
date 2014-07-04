@@ -161,15 +161,18 @@ sub client_run {
 	}
 } # end client_run()
 
+# save a reference on a using shared memory
+my $ref_shared_memory;
+
 sub _lock {
-    my ($self, $file_path) = @_;
+    my ($self) = @_;
     my $share = IPC::ShareLite->new(
         -key     => 'sync',
         -create  => 'yes',
         -destroy => 'no'
     ) || confess $!;
 
-    print STDERR "LOCKING\n";
+    $ref_shared_memory = $share;
 
     my $lock_client = 1;
 
@@ -177,22 +180,7 @@ sub _lock {
 }
 
 sub _unlock {
-    my ($self, $file_path) = @_;
-    my $share = IPC::ShareLite->new(
-        -key     => 'sync',
-        -create  => 'no',
-        -destroy => 'no'
-    ) || confess $!;
-
-    print STDERR "UNLOCKING\n";
-
-    my $lock_client = 0;
-
-    return $share->store( $lock_client );
-}
-
-sub _is_lock {
-    my ($self, $file_path) = @_;
+    my ($self) = @_;
     my $share;
     eval {
         $share = IPC::ShareLite->new(
@@ -202,11 +190,23 @@ sub _is_lock {
         );
     } || return;
 
-    my $lock_client = $share->fetch();
+    my $lock_client = 0;
 
-    print STDERR "IS LOCKING $lock_client";
+    return $share->store( $lock_client );
+}
 
-    return $lock_client;
+sub _is_lock {
+    my ($self) = @_;
+    my $share;
+    eval {
+        $share = IPC::ShareLite->new(
+            -key     => 'sync',
+            -create  => 'no',
+            -destroy => 'no'
+        );
+    } || return;
+
+    return $share->fetch();
 }
 
 sub get_updates_from_remote {
