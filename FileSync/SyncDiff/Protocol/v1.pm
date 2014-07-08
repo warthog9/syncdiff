@@ -169,7 +169,7 @@ sub _lock {
     my $share = IPC::ShareLite->new(
         -key     => 'sync',
         -create  => 'yes',
-        -destroy => 'no'
+        -destroy => 'yes'
     ) || confess $!;
 
     $ref_shared_memory = $share;
