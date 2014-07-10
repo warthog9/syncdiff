@@ -312,6 +312,10 @@ sub process_request {
 		return $self->_add_soft_delete_entry( $request->{file_checksum} );
 	}
 
+	if ( $request->{operation} eq "get_soft_deleted_files_to_clean"){
+		return $self->_get_soft_deleted_files_to_clean();
+	}
+
 } # end process_request()
 
 sub clean_stop {
@@ -1191,7 +1195,7 @@ sub _is_file_soft_deleted {
 		my $new_file_obj = FileSync::SyncDiff::File->new(dbref => $self->dbref);
 		$new_file_obj->get_file( "./softDeleted/" . $file_checksum, "", "");
 		$new_file_obj->checksum_file();
-		$file_new_checksum = $new_file_obj->checksum;
+		my $file_new_checksum = $new_file_obj->checksum;
 
 		if ($file_new_checksum == $file_checksum) {
 			my $dbh = $self->dbh;
@@ -1282,7 +1286,38 @@ sub _add_soft_delete_entry {
 	my $sql = "INSERT into soft_deleted_files (checksum, soft_deleted_since) values (?, strftime('%s','now'))";
 	my $sth = $dbh->prepare($sql);
 	$sth->execute($file_checksum);
-}
+} # end _add_soft_delete_entry
+
+sub get_soft_deleted_files_to_clean {
+	my ($self) = @_;
+
+	my %request = {
+		operation => 'get_soft_deleted_files_to_clean',
+	};
+
+	my $response = $self->send_request( %request );
+
+	return $response;
+} # end get_soft_deleted_files_to_clean
+
+sub _get_soft_deleted_files_to_clean {
+	my ($self) = @_;
+	my $dbh = $self->dbh;
+	my $TIME_RANGE = 30*24*60*60;
+
+	my $sql = "SELECT checksum FROM files WHERE soft_deleted_since <= ?";
+
+	my $sth = $dbh->prepare($sql);
+	$sth->execute(time() - $TIME_RANGE);
+
+	my @return_list;
+
+	while (my @row = $sth->fetchrow_array()) {
+		push(@return_list, @row[0]);
+	}
+
+	return \@return_list;
+} # end _get_soft_deleted_files_to_clean
 
 #no moose;
 __PACKAGE__->meta->make_immutable;

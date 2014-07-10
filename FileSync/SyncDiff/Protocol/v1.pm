@@ -160,6 +160,9 @@ sub client_run {
 	} else {
 		print "No updates found\n";
 	}
+
+	$self->clean_soft_deletes();
+
 } # end client_run()
 
 sub get_updates_from_remote {
@@ -328,6 +331,19 @@ sub get_updates_from_remote {
 
 } # end get_updates_from_remote()
 
+sub clean_soft_deletes {
+	my ($self) = @_;
+	my $dbref = $self->dbref;
+
+	my @files_to_clean = $dbref->get_soft_deleted_files_to_clean();
+
+	foreach my $checksum (@files_to_clean) {
+		unlink "./syncdiff".$checksum or die "Could not unlink file during cleaning of soft deleted files";
+		$dbref->remove_soft_delete_entry($checksum);
+	}
+
+} # end clean_soft_deletes
+
 sub delete_file {
 	my ($self, $temp_file) = @_;
 	my $dbref = $self->dbref;
@@ -335,7 +351,7 @@ sub delete_file {
 	move($temp_file->filepath, "./syncdiff/".$temp_file->checksum);
 	$dbref->mark_deleted($temp_file);
 	$dbref->add_soft_delete_entry($temp_file->checksum);
-}
+} # end delete_file
 
 sub sync_local_file {
 	my ($self, $temp_file, $old_path, $moveFlag) = @_;
