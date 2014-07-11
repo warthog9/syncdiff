@@ -28,27 +28,30 @@
 # Or, see <http://www.gnu.org/licenses/>.                                 #
 ###########################################################################
 
-package FileSync::SyncDiff::Notify::Plugin::Inotify2;
-$FileSync::SyncDiff::Plugin::Inotify2::VERSION = '0.01';
+package FileSync::SyncDiff::Notify::Plugin::KQueue;
+$FileSync::SyncDiff::Plugin::KQueue::VERSION = '0.01';
 
 use Moose;
-
 use MooseX::Types::Moose qw(CodeRef);
 use MooseX::Types -declare => ['Event'];
 use MooseX::FileAttribute;
+use namespace::clean -except => ['meta'];
 
 use FileSync::SyncDiff::Notify::Event;
 use FileSync::SyncDiff::Notify::Event::Callback;
 
+use Carp qw(confess carp);
+use IO::KQueue;
 use AnyEvent;
-use Linux::Inotify2;
 use File::Next;
+use Path::Class;
 
 use Data::Dumper;
 
-use namespace::clean -except => ['meta'];
+# Arbitrary limit on open filehandles before issuing a warning
+our $WARN_FILEHANDLE_LIMIT = 500;
 
-has 'dirs' => ( 
+has 'dirs' => (
     is         => 'ro',
     isa        => 'ArrayRef',
     required => 1,
@@ -70,21 +73,6 @@ has 'event_receiver' => (
     coerce   => 1,
 );
 
-has 'inotify' => (
-    init_arg   => undef,
-    is         => 'ro',
-    isa        => 'Linux::Inotify2',
-    handles    => [qw/poll fileno watch/],
-    builder    => '_build_inotify',
-    lazy_build => 1,
-);
-
-sub _build_inotify {
-    my $self = shift;
-
-    Linux::Inotify2->new || confess "Inotify initialization failed: $!";
-}
-
 has 'io_watcher' => (
     init_arg => undef,
     is       => 'ro',
@@ -92,61 +80,120 @@ has 'io_watcher' => (
     required => 1,
 );
 
+has 'kqueue' => (
+    init_arg   => undef,
+    is         => 'ro',
+    isa        => 'IO::KQueue',
+    builder    => '_build_kqueue',
+    lazy_build => 1,
+);
+
+has _fs          => ( is => 'rw', isa => 'HashRef', );
+has _watcher     => ( is => 'rw', );
+
+sub _build_kqueue {
+    my $self = shift;
+
+    IO::KQueue->new() || confess "Unable to create new IO::KQueue object";
+}
+
 sub _build_io_watcher {
     my $self = shift;
 
-    return AnyEvent->io(
-        fh   => $self->fileno,
+    return AnyEvent->io (
+        fh   => ${$self->kqueue},
         poll => 'r',
-        cb   => sub { $self->poll },
+        cb   => sub {
+            my $kevent      = $self->kqueue->kevent;
+            my $file        = $self->_fs->{$kevent->[KQ_IDENT]}{file};
+            my $groupbase   = $self->_fs->{$kevent->[KQ_IDENT]}{groupbase};
+            $self->handle_event($file, $kevent, $groupbase);
+        }
     );
-}
-
-sub _watch_dir {
-    my ($self, $dir) = @_;
-
-    my $next = File::Next::dirs({
-        follow_symlinks => 0,
-    }, $dir);
-
-    while ( my $entry = $next->() ) {
-        last unless defined $entry;
-
-        if( -d $entry ){
-            $entry = Path::Class::dir($entry);
-        }
-        else {
-            $entry = Path::Class::file($entry);
-        }
-
-        $self->watch(
-            $entry->stringify,
-            IN_MODIFY,
-            sub { $self->handle_event($entry, $_[0], $dir) },
-        );
-    }
 }
 
 sub BUILD {
     my $self = shift;
 
-    $self->_watch_dir($_)for(@{$self->dirs});
+    # # Add each file on each directory
+    my @fhs;
+    for my $path (@{$self->dirs}) {
+        push @fhs, $self->_watch_dir($path);
+    }
+
+    $self->_watcher( { fhs => \@fhs, w => $self->io_watcher } );
+
+    return 1;
+}
+
+sub _check_filehandle_count {
+    my ($self) = @_;
+
+    my $count = $self->_watcher_count;
+    carp "KQueue requires a filehandle for each watched file and directory.\n"
+      . "You currently have $count filehandles for this AnyEvent::Filesys::Notify object.\n"
+      . "The use of the KQueue backend is not recommended."
+      if $count > $WARN_FILEHANDLE_LIMIT;
+}
+
+sub _watcher_count {
+    my ($self) = @_;
+    return scalar @{ $self->_watcher->{fhs} };
+}
+
+sub _watch_dir {
+    my ( $self, $dir ) = @_;
+
+    my $next = File::Next::files({
+        sort_files => \&File::Next::sort_standard,
+    }, $dir);
+
+    my $fs;
+    my @fhs;
+    while ( my $entry = $next->() ) {
+        last unless defined $entry;
+
+        $entry = file($entry);
+
+        open my $fh, '<', $entry->stringify || do {
+            carp
+              "KQueue requires a filehandle for each watched file on directory.\n"
+              . "You have exceeded the number of filehandles permitted by the OS.\n"
+              if $! =~ /^Too many open files/;
+            confess "Can't open file ($entry->stringify): $!";
+        };
+
+        $self->kqueue->EV_SET(
+            fileno($fh),
+            EVFILT_VNODE,
+            EV_ADD | EV_ENABLE | EV_CLEAR,
+            NOTE_DELETE | NOTE_WRITE | NOTE_EXTEND | NOTE_ATTRIB | NOTE_LINK |
+              NOTE_RENAME | NOTE_REVOKE,
+        );
+
+        $fs->{fileno($fh)} = { file       => $entry->stringify,
+                               groupbase  => $dir,
+                             };
+        push(@fhs, $fh);
+    }
+
+    $self->_fs($fs);
+
+    return @fhs;
 }
 
 my %events = (
-    IN_MODIFY        => 'handle_modify',
+    &NOTE_EXTEND        => 'handle_modify',
+    &NOTE_WRITE         => 'handle_modify',
 );
 
 sub handle_event {
-    my ($self, $file, $event, $dir) = @_;
+    my ($self, $file, $event, $groupbase) = @_;
 
-    my $event_file = $file->file($event->name);
-
-    my $rel = $event_file->relative($dir);
     for my $type (keys %events){
         my $method = $events{$type};
-        if( $event->$type ){
-            $self->$method($rel, $dir);
+        if( $event->[KQ_FFLAGS] & $type ){
+            $self->$method($file, $groupbase);
             return 1;
         }
     }

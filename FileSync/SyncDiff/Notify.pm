@@ -68,9 +68,13 @@ has 'dbref' => (
 sub _load_plugin {
     my $self = shift;
 
-    if ( $^O eq 'linux' ) {
+    if ( $^O =~ /linux/i ) {
         require FileSync::SyncDiff::Notify::Plugin::Inotify2;
         $self->_load_linux();
+    }
+    elsif ( $^O =~ /bsd/i ) {
+        require FileSync::SyncDiff::Notify::Plugin::KQueue;
+        $self->_load_bsd();
     }
 
     return 1;
@@ -209,6 +213,70 @@ sub _load_linux {
     $cv->recv;
 }
 
+sub _load_bsd {
+    my $self = shift;
+
+    my @dirs;
+    for my $group_data ( values %{$self->config->config->{groups}} ){
+        push(@dirs, $group_data->{patterns});
+    }
+
+    my $cv = AnyEvent->condvar;
+
+        my $kqueue = FileSync::SyncDiff::Notify::Plugin::KQueue->new(
+            dirs => @dirs,
+            event_receiver => sub {
+                my ($event, $file, $groupbase) = @_;
+                if($event eq 'modify') {
+                    # Notify daemon was stopped
+                    return if ( ! $self->is_running() );
+
+                    print Dumper $event;
+
+                    while ( my($group_name, $group_data) = each(%{$self->config->config->{groups}}) ) {
+
+                        # scanning a new changes
+                        my $scanner = FileSync::SyncDiff::Scanner->new(
+                                group => $group_name,
+                                groupbase => $groupbase,
+                                dbref => $self->dbref);
+                        $scanner->fork_and_scan();
+
+                        # Need to notify only those groups which contain a true include
+                        # for file which was modified
+                        next if( ! grep{ $_ eq $groupbase }@{ $group_data->{patterns} } );
+
+                        for my $host ( @{ $group_data->{host} } ){
+                            my $sock = new IO::Socket::INET (
+                                            PeerAddr => $host,
+                                            PeerPort => '7070',
+                                            Proto => 'tcp',
+                                            );
+                            if( ! $sock ){
+                                confess "Could not create socket: $!\n";
+                                next;
+                            } # end skipping if the socket is broken
+
+                            $sock->autoflush(1);
+
+                            my %request = (
+                                'operation' => 'request_notify',
+                                'hostname'  => Net::Address::IP::Local->public,
+                                'group'     => $group_name,
+                            );
+                            my $json = encode_json(\%request);
+                            print $sock $json;
+
+                            close $sock;
+                        }
+                    }
+                }
+            }
+        );
+
+    $cv->recv;
+}
+
 sub _kill_handler {
     my $pid_obj = File::Pid->new({
         file => catfile(PID_DIR, PID_FILE)
@@ -236,8 +304,6 @@ override 'run_child' => sub {
     my( $self ) = @_;
 
     $self->_daemonize();
-
-    # $self->start();
 
     $self->_load_plugin();
 };
