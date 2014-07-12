@@ -162,52 +162,8 @@ sub _load_linux {
         my $inotify = FileSync::SyncDiff::Notify::Plugin::Inotify2->new(
             dirs => @dirs,
             event_receiver => sub {
-               my ($event, $file, $groupbase) = @_;
-               if($event eq 'modify') {
-                    # Notify daemon was stopped
-                    return if ( ! $self->is_running() );
-
-                    print Dumper $event;
-
-                    while ( my($group_name, $group_data) = each(%{$self->config->config->{groups}}) ) {
-
-                        # scanning a new changes
-                        my $scanner = FileSync::SyncDiff::Scanner->new(
-                                group => $group_name,
-                                groupbase => $groupbase,
-                                dbref => $self->dbref);
-                        $scanner->fork_and_scan();
-
-                        # Need to notify only those groups which contain a true include
-                        # for file which was modified
-                        next if( ! grep{ $_ eq $groupbase }@{ $group_data->{patterns} } );
-
-                        for my $host ( @{ $group_data->{host} } ){
-                            my $sock = new IO::Socket::INET (
-                                            PeerAddr => $host,
-                                            PeerPort => '7070',
-                                            Proto => 'tcp',
-                                            );
-                            if( ! $sock ){
-                                confess "Could not create socket: $!\n";
-                                next;
-                            } # end skipping if the socket is broken
-
-                            $sock->autoflush(1);
-
-                            my %request = (
-                                'operation' => 'request_notify',
-                                'hostname'  => Net::Address::IP::Local->public,
-                                'group'     => $group_name,
-                            );
-                            my $json = encode_json(\%request);
-                            print $sock $json;
-
-                            close $sock;
-                        }
-                    }
-               }
-            },
+               $self->_process_events(@_);
+            }
         );
 
     $cv->recv;
@@ -226,55 +182,59 @@ sub _load_bsd {
         my $kqueue = FileSync::SyncDiff::Notify::Plugin::KQueue->new(
             dirs => @dirs,
             event_receiver => sub {
-                my ($event, $file, $groupbase) = @_;
-                if($event eq 'modify') {
-                    # Notify daemon was stopped
-                    return if ( ! $self->is_running() );
-
-                    print Dumper $event;
-
-                    while ( my($group_name, $group_data) = each(%{$self->config->config->{groups}}) ) {
-
-                        # scanning a new changes
-                        my $scanner = FileSync::SyncDiff::Scanner->new(
-                                group => $group_name,
-                                groupbase => $groupbase,
-                                dbref => $self->dbref);
-                        $scanner->fork_and_scan();
-
-                        # Need to notify only those groups which contain a true include
-                        # for file which was modified
-                        next if( ! grep{ $_ eq $groupbase }@{ $group_data->{patterns} } );
-
-                        for my $host ( @{ $group_data->{host} } ){
-                            my $sock = new IO::Socket::INET (
-                                            PeerAddr => $host,
-                                            PeerPort => '7070',
-                                            Proto => 'tcp',
-                                            );
-                            if( ! $sock ){
-                                confess "Could not create socket: $!\n";
-                                next;
-                            } # end skipping if the socket is broken
-
-                            $sock->autoflush(1);
-
-                            my %request = (
-                                'operation' => 'request_notify',
-                                'hostname'  => Net::Address::IP::Local->public,
-                                'group'     => $group_name,
-                            );
-                            my $json = encode_json(\%request);
-                            print $sock $json;
-
-                            close $sock;
-                        }
-                    }
-                }
+                $self->_process_events(@_);
             }
         );
 
     $cv->recv;
+}
+
+sub _process_events {
+    my ($self, $event, $file, $groupbase) = @_;
+    if($event eq 'modify') {
+        # Notify daemon was stopped
+        return if ( ! $self->is_running() );
+
+        print Dumper $event;
+
+        while ( my($group_name, $group_data) = each(%{$self->config->config->{groups}}) ) {
+
+            # scanning a new changes
+            my $scanner = FileSync::SyncDiff::Scanner->new(
+                    group => $group_name,
+                    groupbase => $groupbase,
+                    dbref => $self->dbref);
+            $scanner->fork_and_scan();
+
+            # Need to notify only those groups which contain a true include
+            # for file which was modified
+            next if( ! grep{ $_ eq $groupbase }@{ $group_data->{patterns} } );
+
+            for my $host ( @{ $group_data->{host} } ){
+                my $sock = new IO::Socket::INET (
+                                PeerAddr => $host,
+                                PeerPort => '7070',
+                                Proto => 'tcp',
+                                );
+                if( ! $sock ){
+                    confess "Could not create socket: $!\n";
+                    next;
+                } # end skipping if the socket is broken
+
+                $sock->autoflush(1);
+
+                my %request = (
+                    'operation' => 'request_notify',
+                    'hostname'  => Net::Address::IP::Local->public,
+                    'group'     => $group_name,
+                );
+                my $json = encode_json(\%request);
+                print $sock $json;
+
+                close $sock;
+            }
+        }
+    }
 }
 
 sub _kill_handler {
