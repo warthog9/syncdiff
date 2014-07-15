@@ -49,7 +49,7 @@ use Path::Class;
 use Data::Dumper;
 
 # Arbitrary limit on open filehandles before issuing a warning
-our $WARN_FILEHANDLE_LIMIT = 500;
+our $WARN_FILEHANDLE_LIMIT = 50;
 
 has 'dirs' => (
     is         => 'ro',
@@ -123,6 +123,8 @@ sub BUILD {
 
     $self->_watcher( { fhs => \@fhs, w => $self->io_watcher } );
 
+    $self->_check_filehandle_count();
+
     return 1;
 }
 
@@ -131,8 +133,7 @@ sub _check_filehandle_count {
 
     my $count = $self->_watcher_count;
     carp "KQueue requires a filehandle for each watched file and directory.\n"
-      . "You currently have $count filehandles for this AnyEvent::Filesys::Notify object.\n"
-      . "The use of the KQueue backend is not recommended."
+      . "You currently have $count filehandles for this object.\n"
       if $count > $WARN_FILEHANDLE_LIMIT;
 }
 
