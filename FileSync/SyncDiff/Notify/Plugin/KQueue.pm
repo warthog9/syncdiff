@@ -149,7 +149,6 @@ sub _watch_dir {
         sort_files => \&File::Next::sort_standard,
     }, $dir);
 
-    my $fs;
     my @fhs;
     while ( my $entry = $next->() ) {
         last unless defined $entry;
@@ -172,13 +171,12 @@ sub _watch_dir {
               NOTE_RENAME | NOTE_REVOKE,
         );
 
-        $fs->{fileno($fh)} = { file       => $entry->stringify,
-                               groupbase  => $dir,
-                             };
+        $self->_fs(
+            fileno($fh) => { file       => $entry->stringify,
+                             groupbase  => $dir,
+                           });
         push(@fhs, $fh);
     }
-
-    $self->_fs($fs);
 
     return @fhs;
 }
