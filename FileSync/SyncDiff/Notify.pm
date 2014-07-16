@@ -38,13 +38,14 @@ extends qw(FileSync::SyncDiff::Forkable);
 use FileSync::SyncDiff::Scanner;
 use FileSync::SyncDiff::Config;
 
-use Carp qw(cluck confess);
+use Carp qw(cluck confess carp);
 use AnyEvent;
-use File::Pid;
+use File::Pid qw();
 use JSON::XS qw(encode_json);
 use Net::Address::IP::Local;
 use File::Spec::Functions qw(catfile);
 use IPC::ShareLite qw();
+use Net::Ping qw();
 
 use sigtrap 'handler' => \&_kill_handler, 'HUP', 'INT','ABRT','QUIT','TERM';
 
@@ -210,7 +211,15 @@ sub _process_events {
             # for file which was modified
             next if( ! grep{ $_ eq $groupbase }@{ $group_data->{patterns} } );
 
+            NEXT_HOST:
             for my $host ( @{ $group_data->{host} } ){
+                my $p = Net::Ping->new();
+                if ( ! $p->ping($host) ){
+                    carp "$host is not alive!\n";
+                    next NEXT_HOST;
+                }
+                $p->close();
+
                 my $sock = new IO::Socket::INET (
                                 PeerAddr => $host,
                                 PeerPort => '7070',
