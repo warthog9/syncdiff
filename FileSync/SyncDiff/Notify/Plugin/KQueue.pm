@@ -139,7 +139,8 @@ sub _watcher_count {
     return scalar @{ $self->_watcher->{fhs} };
 }
 
-my $fs;
+# empty value need to proof validation of Moose HashRef
+my $fs = {};
 
 sub scan_fs {
     my ( $self ) = shift;
@@ -183,7 +184,8 @@ sub _watch_dir {
 
         $fs->{fileno($fh)} = { file       => $entry->stringify,
                                groupbase  => $include,
-                             }) if ! exists $fs->{fileno($fh)};
+                             } if ( ! exists $fs->{fileno($fh)} );
+
         push(@fhs, $fh);
     }
 
