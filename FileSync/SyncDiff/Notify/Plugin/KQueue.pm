@@ -51,7 +51,7 @@ use Data::Dumper;
 # Arbitrary limit on open filehandles before issuing a warning
 our $WARN_FILEHANDLE_LIMIT = 50;
 
-has 'dirs' => (
+has 'includes' => (
     is         => 'ro',
     isa        => 'ArrayRef',
     required => 1,
@@ -115,13 +115,10 @@ sub _build_io_watcher {
 sub BUILD {
     my $self = shift;
 
-    # # Add each file on each directory
-    my @fhs;
-    for my $path (@{$self->dirs}) {
-        push @fhs, $self->_watch_dir($path);
-    }
+    # scan all directory in all groupbases
+    my $fhs = $self->scan_fs();
 
-    $self->_watcher( { fhs => \@fhs, w => $self->io_watcher } );
+    $self->_watcher( { fhs => $fhs, w => $self->io_watcher } );
 
     $self->_check_filehandle_count();
 
@@ -142,12 +139,25 @@ sub _watcher_count {
     return scalar @{ $self->_watcher->{fhs} };
 }
 
+my $fs;
+
+sub scan_fs {
+    my ( $self ) = shift;
+
+    my @fhs;
+    for my $path ( @{$self->includes} ) {
+        push @fhs, $self->_watch_dir($path);
+    }
+
+    return \@fhs;
+}
+
 sub _watch_dir {
-    my ( $self, $dir ) = @_;
+    my ( $self, $include ) = @_;
 
     my $next = File::Next::files({
         sort_files => \&File::Next::sort_standard,
-    }, $dir);
+    }, $include);
 
     my @fhs;
     while ( my $entry = $next->() ) {
@@ -171,12 +181,13 @@ sub _watch_dir {
               NOTE_RENAME | NOTE_REVOKE,
         );
 
-        $self->_fs(
-            fileno($fh) => { file       => $entry->stringify,
-                             groupbase  => $dir,
-                           });
+        $fs->{fileno($fh)} = { file       => $entry->stringify,
+                               groupbase  => $include,
+                             }) if ! exists $fs->{fileno($fh)};
         push(@fhs, $fh);
     }
+
+    $self->_fs($fs);
 
     return @fhs;
 }

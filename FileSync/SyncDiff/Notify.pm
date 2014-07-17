@@ -181,7 +181,7 @@ sub _load_bsd {
     my $cv = AnyEvent->condvar;
 
         my $kqueue = FileSync::SyncDiff::Notify::Plugin::KQueue->new(
-            dirs => @dirs,
+            includes => @dirs,
             event_receiver => sub {
                 $self->_process_events(@_);
             }
