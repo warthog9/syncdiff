@@ -125,8 +125,8 @@ $dbconnection->file( "psync.sqlite" );
 
 $dbconnection->connect_and_fork();
 
-my $inotify = FileSync::SyncDiff::Notify->new( config => $config, dbref => $dbconnection );
-$inotify->run();
+my $notify = FileSync::SyncDiff::Notify->new( config => $config, dbref => $dbconnection );
+$notify->run();
 
 if( $run_only_scan ){
 	FileSync::SyncDiff::Scanner->full_scan( $config, $dbconnection );
@@ -140,7 +140,7 @@ if( $run_as_server ){
 	exit(0);
 }
 
-$inotify->stop;
+$notify->stop;
 
 #print Dumper $config->config;
 
@@ -155,7 +155,7 @@ foreach my $group_name ( keys %{ $config->config->{groups} } ){
 	} # end base foreach
 } # end group_name foreach
 
-$inotify->start;
+$notify->start;
 
 #my $config = FileSync::SyncDiff::Config->new();
 #
