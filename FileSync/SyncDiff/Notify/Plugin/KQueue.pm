@@ -88,8 +88,16 @@ has 'kqueue' => (
     lazy_build => 1,
 );
 
-has _fs          => ( is => 'rw', isa => 'HashRef', );
-has _watcher     => ( is => 'rw', );
+has '_fs'      => (
+    init_arg   => undef,
+    is         => 'rw',
+    isa        => 'HashRef',
+);
+
+has '_watcher' => (
+    init_arg   => undef,
+    is         => 'rw',
+);
 
 sub _build_kqueue {
     my $self = shift;
@@ -105,9 +113,11 @@ sub _build_io_watcher {
         poll => 'r',
         cb   => sub {
             my $kevent      = $self->kqueue->kevent;
-            my $file        = $self->_fs->{$kevent->[KQ_IDENT]}{file};
+            my $fflags      = $kevent->[KQ_FFLAGS];
             my $groupbase   = $self->_fs->{$kevent->[KQ_IDENT]}{groupbase};
-            $self->handle_event($file, $kevent, $groupbase);
+            my $fh          = $self->_fs->{$kevent->[KQ_IDENT]}{fh};
+            my $file        = $self->_fs->{$kevent->[KQ_IDENT]}{file};
+            $self->handle_event($file, $groupbase, $fflags, $fh);
         }
     );
 }
@@ -116,11 +126,7 @@ sub BUILD {
     my $self = shift;
 
     # scan all directory in all groupbases
-    my $fhs = $self->scan_fs();
-
-    $self->_watcher( { fhs => $fhs, w => $self->io_watcher } );
-
-    $self->_check_filehandle_count();
+    my $fhs = $self->scan_fs($self->includes);
 
     return 1;
 }
@@ -143,14 +149,36 @@ sub _watcher_count {
 my $fs = {};
 
 sub scan_fs {
-    my ( $self ) = shift;
+    my ( $self, $dirs ) = @_;
 
     my @fhs;
-    for my $path ( @{$self->includes} ) {
+    for my $path ( @{$dirs} ) {
         push @fhs, $self->_watch_dir($path);
     }
 
-    return \@fhs;
+    $self->_watcher( { fhs => \@fhs, w => $self->io_watcher } );
+
+    $self->_check_filehandle_count();
+
+    return 1;
+}
+
+sub _get_fhs {
+    my $self = shift;
+    my @fhs;
+    while ( my($k,$v) = each(%{ $self->_fs }) ) {
+        push @fhs, $v->{fh};
+    }
+
+    return @fhs;
+}
+
+sub _del_and_close {
+    my ($self, $fh) = @_;
+    delete $self->_fs->{fileno($fh)};
+    close $fh;
+
+    return 1;
 }
 
 sub _watch_dir {
@@ -160,11 +188,14 @@ sub _watch_dir {
         sort_files => \&File::Next::sort_standard,
     }, $include);
 
-    my @fhs;
+    NEXT_FILE:
     while ( my $entry = $next->() ) {
         last unless defined $entry;
 
         $entry = file($entry);
+
+        my @files = grep{ $_->{file} eq $entry->stringify } values(%{ $self->_fs }) if $self->_fs;
+        next NEXT_FILE if ( scalar @files );
 
         open my $fh, '<', $entry->stringify || do {
             carp
@@ -178,20 +209,18 @@ sub _watch_dir {
             fileno($fh),
             EVFILT_VNODE,
             EV_ADD | EV_ENABLE | EV_CLEAR,
-            NOTE_DELETE | NOTE_WRITE | NOTE_EXTEND | NOTE_ATTRIB | NOTE_LINK |
-              NOTE_RENAME | NOTE_REVOKE,
+            NOTE_DELETE | NOTE_WRITE | NOTE_EXTEND | NOTE_RENAME | NOTE_REVOKE,
         );
 
-        $fs->{fileno($fh)} = { file       => $entry->stringify,
-                               groupbase  => $include,
-                             } if ( ! exists $fs->{fileno($fh)} );
-
-        push(@fhs, $fh);
+        $fs->{fileno($fh)} = { groupbase  => $include,
+                               fh         => $fh,
+                               file       => $entry->stringify,
+                             };
     }
 
     $self->_fs($fs);
 
-    return @fhs;
+    return $self->_get_fhs();
 }
 
 my %events = (
@@ -200,11 +229,25 @@ my %events = (
 );
 
 sub handle_event {
-    my ($self, $file, $event, $groupbase) = @_;
+    my ($self, $file, $groupbase, $fflags, $fh) = @_;
+
+    if ( $fflags & NOTE_DELETE ) {
+        print Dumper $self->_fs;
+        $self->_del_and_close($fh);
+        print Dumper $self->_fs;
+        return 1;
+    }
+    elsif ( $fflags & NOTE_RENAME ) {
+        print Dumper $self->_fs;
+        $self->_del_and_close($fh);
+        $self->scan_fs([$groupbase]);
+        print Dumper $self->_fs;
+        return 1;
+    }
 
     for my $type (keys %events){
         my $method = $events{$type};
-        if( $event->[KQ_FFLAGS] & $type ){
+        if( $fflags & $type ){
             $self->$method($file, $groupbase);
             return 1;
         }

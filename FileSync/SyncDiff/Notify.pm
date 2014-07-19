@@ -183,7 +183,8 @@ sub _load_bsd {
         my $kqueue = FileSync::SyncDiff::Notify::Plugin::KQueue->new(
             includes => @dirs,
             event_receiver => sub {
-                $self->_process_events(@_);
+                print Dumper @_;
+                # $self->_process_events(@_);
             }
         );
 
