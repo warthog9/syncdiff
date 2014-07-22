@@ -145,9 +145,6 @@ sub _watcher_count {
     return scalar @{ $self->_watcher->{fhs} };
 }
 
-# empty value need to proof validation of Moose HashRef
-my $fs = {};
-
 sub scan_fs {
     my ( $self, $dirs ) = @_;
 
@@ -173,10 +170,44 @@ sub _get_fhs {
     return @fhs;
 }
 
+sub _check_fs {
+    my ( $self, $path ) = @_;
+    my @items = grep{ $_->{file} eq $path } values(%{ $self->_fs }) if $self->_fs;
+    return \@items;
+}
+
 sub _del_and_close {
     my ($self, $fh) = @_;
     delete $self->_fs->{fileno($fh)};
     close $fh;
+
+    return 1;
+}
+
+# empty value need to proof validation of Moose HashRef
+my $fs = {};
+
+sub _watch {
+    my ( $self, $o ) = @_;
+
+    open my $fh, "<" ,$o->{path} || do {
+            carp
+              "KQueue requires a filehandle for each watched file and directory.\n"
+              . "You have exceeded the number of filehandles permitted by the OS.\n"
+              if $! =~ /^Too many open files/;
+            confess "Can't open ($o->{path}): $!";
+    };
+    $self->kqueue->EV_SET(
+            fileno($fh),
+            EVFILT_VNODE,
+            EV_ADD | EV_ENABLE | EV_CLEAR,
+            NOTE_DELETE | NOTE_WRITE | NOTE_EXTEND | NOTE_RENAME | NOTE_REVOKE,
+    );
+
+    $fs->{fileno($fh)}{fh}          = $fh;
+    $fs->{fileno($fh)}{file}        = $o->{path};
+    $fs->{fileno($fh)}{dir}         = 1 if -d $o->{path};
+    $fs->{fileno($fh)}{groupbase}   = $o->{include} ? $o->{include} : $o->{path};
 
     return 1;
 }
@@ -188,34 +219,20 @@ sub _watch_dir {
         sort_files => \&File::Next::sort_standard,
     }, $include);
 
+    # need to open a directories for detect a creation of files
+    $self->_watch({path => $include}) if ( ! @{ $self->_check_fs($include) } );
+
     NEXT_FILE:
     while ( my $entry = $next->() ) {
         last unless defined $entry;
 
         $entry = file($entry);
 
-        my @files = grep{ $_->{file} eq $entry->stringify } values(%{ $self->_fs }) if $self->_fs;
-        next NEXT_FILE if ( scalar @files );
+        next NEXT_FILE if ( @{ $self->_check_fs($entry->stringify) } );
 
-        open my $fh, '<', $entry->stringify || do {
-            carp
-              "KQueue requires a filehandle for each watched file on directory.\n"
-              . "You have exceeded the number of filehandles permitted by the OS.\n"
-              if $! =~ /^Too many open files/;
-            confess "Can't open file ($entry->stringify): $!";
-        };
-
-        $self->kqueue->EV_SET(
-            fileno($fh),
-            EVFILT_VNODE,
-            EV_ADD | EV_ENABLE | EV_CLEAR,
-            NOTE_DELETE | NOTE_WRITE | NOTE_EXTEND | NOTE_RENAME | NOTE_REVOKE,
-        );
-
-        $fs->{fileno($fh)} = { groupbase  => $include,
-                               fh         => $fh,
-                               file       => $entry->stringify,
-                             };
+        $self->_watch({ path    => $entry->stringify,
+                        include => $include,
+        });
     }
 
     $self->_fs($fs);
@@ -232,23 +249,24 @@ sub handle_event {
     my ($self, $file, $groupbase, $fflags, $fh) = @_;
 
     if ( $fflags & NOTE_DELETE ) {
-        print Dumper $self->_fs;
         $self->_del_and_close($fh);
-        print Dumper $self->_fs;
         return 1;
     }
     elsif ( $fflags & NOTE_RENAME ) {
-        print Dumper $self->_fs;
         $self->_del_and_close($fh);
         $self->scan_fs([$groupbase]);
-        print Dumper $self->_fs;
         return 1;
     }
 
     for my $type (keys %events){
         my $method = $events{$type};
         if( $fflags & $type ){
-            $self->$method($file, $groupbase);
+            if ( $self->_fs->{fileno($fh)}{dir} ) {
+                $self->scan_fs([$groupbase]);
+            }
+            else {
+                $self->$method($file, $groupbase);
+            }
             return 1;
         }
     }
