@@ -92,6 +92,7 @@ has '_fs'      => (
     init_arg   => undef,
     is         => 'rw',
     isa        => 'HashRef',
+    default    => sub { {} },
 );
 
 has '_watcher' => (
@@ -184,9 +185,6 @@ sub _del_and_close {
     return 1;
 }
 
-# empty value need to proof validation of Moose HashRef
-my $fs = {};
-
 sub _watch {
     my ( $self, $o ) = @_;
 
@@ -204,10 +202,10 @@ sub _watch {
             NOTE_DELETE | NOTE_WRITE | NOTE_EXTEND | NOTE_RENAME | NOTE_REVOKE,
     );
 
-    $fs->{fileno($fh)}{fh}          = $fh;
-    $fs->{fileno($fh)}{file}        = $o->{path};
-    $fs->{fileno($fh)}{dir}         = 1 if -d $o->{path};
-    $fs->{fileno($fh)}{groupbase}   = $o->{include} ? $o->{include} : $o->{path};
+    $self->_fs->{fileno($fh)}{fh}          = $fh;
+    $self->_fs->{fileno($fh)}{file}        = $o->{path};
+    $self->_fs->{fileno($fh)}{dir}         = 1 if -d $o->{path};
+    $self->_fs->{fileno($fh)}{groupbase}   = $o->{include} ? $o->{include} : $o->{path};
 
     return 1;
 }
@@ -224,7 +222,7 @@ sub _watch_dir {
 
     NEXT_FILE:
     while ( my $entry = $next->() ) {
-        last unless defined $entry;
+        last if ! defined $entry;
 
         $entry = file($entry);
 
@@ -234,8 +232,6 @@ sub _watch_dir {
                         include => $include,
         });
     }
-
-    $self->_fs($fs);
 
     return $self->_get_fhs();
 }
@@ -254,7 +250,7 @@ sub handle_event {
     }
     elsif ( $fflags & NOTE_RENAME ) {
         $self->_del_and_close($fh);
-        $self->scan_fs([$groupbase]);
+        $self->scan_fs($self->includes);
         return 1;
     }
 
