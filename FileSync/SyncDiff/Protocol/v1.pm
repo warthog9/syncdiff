@@ -31,7 +31,7 @@
 package FileSync::SyncDiff::Protocol::v1;
 $FileSync::SyncDiff::Protocol::v1::VERSION = '0.01';
 use Moose;
-
+use Cwd;
 extends qw(FileSync::SyncDiff::SenderReceiver);
 
 # SyncDiff parts I need
@@ -161,7 +161,7 @@ sub client_run {
 		print "No updates found\n";
 	}
 
-	$self->clean_soft_deletes();
+	$self->clean_soft_deletes($self->group);
 
 } # end client_run()
 
@@ -207,10 +207,12 @@ sub get_updates_from_remote {
 			next;
 		}
 
-		if ($temp_file->deleted) {
+		if ($temp_file->deleted && -e $temp_file->filepath) {
 			$temp_file->{syncbase} = $self->groupbase;
-			$self->dbref->delete_file($temp_file);
-			unlink $temp_file->filepath;
+			$self->delete_file($temp_file);
+			next;
+		}
+		elsif ($temp_file->deleted) {
 			next;
 		}
 
@@ -251,21 +253,19 @@ sub get_updates_from_remote {
 
 			# Check if the file is already present somewhere else
 			my @file_already_present_data = $self->dbref->is_file_already_present($temp_file->checksum);
-			if ($file_already_present_data[0]) {		# check if the file with same checksum exists using boolean value at 0th index
+			if ($file_already_present_data[0][0]) {		# check if the file with same checksum exists using boolean value at 0th index
 				print "File already present on client side. Copying existing file instead of transferring from remote server\n";
-				my $old_file_path = $file_already_present_data[1][0];	# take the first file from array of returned files with same checksum
+				my $old_file_path = $file_already_present_data[0][2];	# take the first file from array of returned files with same checksum
 				$self->sync_local_file($temp_file, $old_file_path, 0);	# last argument 0 denotes copying
-				next;
 			}
 
 			# Check if the file is soft deleted
-			if ($self->dbref->is_file_soft_deleted($temp_file->checksum)) {
+			elsif ($self->dbref->is_file_soft_deleted($temp_file->checksum, $self->group, $self->groupbase)) {
 				print "File is soft-deleted on client side. Copying the soft-deleted file instead of remote transfer\n";
-				$self->sync_local_file($temp_file, "./softDeleted" . $temp_file->checksum, 1);	# last argument 1 denotes moving
-				next;
+				$self->sync_local_file($temp_file, "./softDeleted/" . $temp_file->checksum, 1);	# last argument 1 denotes moving
 			}
 
-			if( $temp_file->filetype eq "file" ){
+			elsif( $temp_file->filetype eq "file" ){
 				$self->sync_file( $temp_file->path, $temp_file->filename, $temp_file->filepath, $temp_file->checksum, $temp_file->last_transaction);
 			}
 
@@ -317,11 +317,6 @@ sub get_updates_from_remote {
 			#exit();
 		}
 
-		if ( $temp_file->deleted ) {
-			delete_file($temp_file);
-			next;
-		}
-
 		print "--------------------------------------------------------------\n";
 		print "***                  NEXT FILE                             ***\n";
 		printf("***                  %3d/%3d                               ***\n", $x, $num_keys);
@@ -335,11 +330,12 @@ sub clean_soft_deletes {
 	my ($self) = @_;
 	my $dbref = $self->dbref;
 
-	my @files_to_clean = $dbref->get_soft_deleted_files_to_clean();
-
-	foreach my $checksum (@files_to_clean) {
-		unlink "./syncdiff".$checksum or die "Could not unlink file during cleaning of soft deleted files";
-		$dbref->remove_soft_delete_entry($checksum);
+	my @files_to_clean = $dbref->get_soft_deleted_files_to_clean($self->group);
+	if ($#files_to_clean) {
+		foreach my $checksum (@files_to_clean) {
+			unlink "./softDeleted/".$checksum or die "Could not unlink file during cleaning of soft deleted files";
+			$dbref->remove_soft_delete_entry($checksum, $self->group);
+		}
 	}
 
 } # end clean_soft_deletes
@@ -348,9 +344,17 @@ sub delete_file {
 	my ($self, $temp_file) = @_;
 	my $dbref = $self->dbref;
 
-	move($temp_file->filepath, "./syncdiff/".$temp_file->checksum);
-	$dbref->mark_deleted($temp_file);
-	$dbref->add_soft_delete_entry($temp_file->checksum);
+	opendir(DIR, getcwd()) or die $!;
+
+	while (my $file = readdir(DIR)) {
+		# Use a regular expression to ignore files beginning with a period
+		next if ($file =~ m/^\./);
+		print "$file\n";
+	}
+
+	move($temp_file->filepath, "./softDeleted/".$temp_file->checksum) or die "Could not move file to softDelete folder while deleting it. $!";
+	$dbref->delete_file($temp_file);
+	$dbref->add_soft_delete_entry($temp_file->checksum, $self->group);
 } # end delete_file
 
 sub sync_local_file {
@@ -373,7 +377,7 @@ sub sync_local_file {
 
 	if ($moveFlag) {
 		unlink $old_path or die "Could not unlink $old_path during local sync: $!";
-		$dbref->remove_soft_delete_entry($temp_file->checksum);
+		$dbref->remove_soft_delete_entry($temp_file->checksum, $self->group);
 	}
 	
 } # end sync_local_file
