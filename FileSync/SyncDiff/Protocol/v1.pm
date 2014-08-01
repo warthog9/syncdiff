@@ -262,7 +262,7 @@ sub get_updates_from_remote {
 			# Check if the file is soft deleted
 			elsif ($self->dbref->is_file_soft_deleted($temp_file->checksum, $self->group, $self->groupbase)) {
 				print "File is soft-deleted on client side. Copying the soft-deleted file instead of remote transfer\n";
-				$self->sync_local_file($temp_file, "./softDeleted/" . $temp_file->checksum, 1);	# last argument 1 denotes moving
+				$self->sync_local_file($temp_file, "./.softDeleted/" . $temp_file->checksum, 1);	# last argument 1 denotes moving
 			}
 
 			elsif( $temp_file->filetype eq "file" ){
@@ -331,11 +331,13 @@ sub clean_soft_deletes {
 	my $dbref = $self->dbref;
 
 	my @files_to_clean = $dbref->get_soft_deleted_files_to_clean($self->group);
-	if ($#files_to_clean) {
-		foreach my $checksum (@files_to_clean) {
-			unlink "./softDeleted/".$checksum or die "Could not unlink file during cleaning of soft deleted files";
-			$dbref->remove_soft_delete_entry($checksum, $self->group);
-		}
+	my $index = 0;
+	while (defined $files_to_clean[0][$index]) {
+		my $checksum = $files_to_clean[0][$index];
+		print "Checksum is $files_to_clean[0][$index]\n";
+		unlink "./.softDeleted/".$checksum or die "Could not unlink file during cleaning of soft deleted files";
+		$dbref->remove_soft_delete_entry($checksum, $self->group);
+		$index++;
 	}
 
 } # end clean_soft_deletes
@@ -352,7 +354,7 @@ sub delete_file {
 		print "$file\n";
 	}
 
-	move($temp_file->filepath, "./softDeleted/".$temp_file->checksum) or die "Could not move file to softDelete folder while deleting it. $!";
+	move($temp_file->filepath, "./.softDeleted/".$temp_file->checksum) or die "Could not move file to softDelete folder while deleting it. $!";
 	$dbref->delete_file($temp_file);
 	$dbref->add_soft_delete_entry($temp_file->checksum, $self->group);
 } # end delete_file

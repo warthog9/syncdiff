@@ -181,6 +181,10 @@ sub fork_and_connect {
 	chroot( $self->groupbase_path );
 	chdir("/");
 
+	if (! -d "./.softDeleted") {
+		mkdir(".softDeleted");
+	}
+
 	#
 	# Ok now we need to connect to the
 	# various hosts associated with

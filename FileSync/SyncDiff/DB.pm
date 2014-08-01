@@ -1192,9 +1192,9 @@ sub _is_file_soft_deleted {
 	my ($self, $file_checksum, $group, $groupbase) = @_;
 	my $row_count = 0;
 
-	if ( -e ($groupbase . "/softDeleted/" . $file_checksum)) {			# keeping a default path temporarily
+	if ( -e ($groupbase . "/.softDeleted/" . $file_checksum)) {			# keeping a default path temporarily
 #		my $new_file_obj = FileSync::SyncDiff::File->new(dbref => FileSync::SyncDiff::DB->new(config => $self->config));
-#		$new_file_obj->get_file( $groupbase . "/softDeleted/" . $file_checksum, "", "");
+#		$new_file_obj->get_file( $groupbase . "/.softDeleted/" . $file_checksum, "", "");
 #		$new_file_obj->checksum_file();
 #		my $file_new_checksum = $new_file_obj->checksum;
 
@@ -1316,12 +1316,11 @@ sub _get_soft_deleted_files_to_clean {
 	my $sth = $dbh->prepare($sql);
 	$sth->execute(time() - $TIME_RANGE, $group);
 
-	my @return_list;
-
-	while (my @row = $sth->fetchrow_array()) {
-		push(@return_list, $row[0]);
+	my @return_list = ();
+	my $item;
+	while (($item) = $sth->fetchrow_array()) {
+		push(@return_list, $item);
 	}
-
 	return \@return_list;
 } # end _get_soft_deleted_files_to_clean
 
