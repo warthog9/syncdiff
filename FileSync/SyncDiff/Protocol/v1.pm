@@ -161,8 +161,7 @@ sub client_run {
 		print "No updates found\n";
 	}
 
-	$self->clean_soft_deletes($self->group);
-
+	$self->clean_soft_deletes();
 } # end client_run()
 
 sub get_updates_from_remote {

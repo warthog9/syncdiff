@@ -1178,7 +1178,6 @@ sub is_file_soft_deleted {
 
 	my %request = (
 			operation => 'is_file_soft_deleted',
-			file_checksum => $file_checksum,
 			group => $group,
 			groupbase => $groupbase,
 	);
@@ -1237,6 +1236,7 @@ sub _add_or_update_file {
 		$file_obj->syncgroup,
 		$file_obj->syncbase
 		);
+
 	my @row = $sth->fetchrow_array();
 	my $row_count = $sth->rows;
 
@@ -1267,7 +1267,6 @@ sub _remove_soft_delete_entry {
 	my $sql = "DELETE from soft_deleted_files WHERE checksum=? AND syncgroup=? ;";
 	my $sth = $dbh->prepare($sql);
 	$sth->execute($file_checksum, $group);
-
 } # _remove_soft_delete_entry
 
 sub add_soft_delete_entry {
