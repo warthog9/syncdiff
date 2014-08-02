@@ -200,13 +200,6 @@ sub _process_events {
 
         while ( my($group_name, $group_data) = each(%{$self->config->config->{groups}}) ) {
 
-            # scanning a new changes
-            my $scanner = FileSync::SyncDiff::Scanner->new(
-                    group => $group_name,
-                    groupbase => $groupbase,
-                    dbref => $self->dbref);
-            $scanner->fork_and_scan();
-
             # Need to notify only those groups which contain a true include
             # for file which was modified
             next if( ! grep{ $_ eq $groupbase }@{ $group_data->{patterns} } );
