@@ -106,7 +106,7 @@ sub stop {
             -destroy => 'no'
         );
     } || return;
- 
+
     $share->store( $is_running );
 
     return $is_running;
@@ -121,7 +121,7 @@ sub start {
         -create  => 'yes',
         -destroy => 'no'
     ) || confess $!;
- 
+
     $share->store( $is_running );
 
     return $is_running;
@@ -136,7 +136,7 @@ sub is_running {
             -destroy => 'no'
         );
     } || return;
- 
+
     return $share->fetch();
 }
 
