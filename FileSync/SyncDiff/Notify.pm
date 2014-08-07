@@ -30,6 +30,7 @@
 
 package FileSync::SyncDiff::Notify;
 $FileSync::SyncDiff::Notify::VERSION = '0.01';
+$FileSync::SyncDiff::Notify::TEST    = 0;
 
 use Moose;
 
@@ -83,6 +84,8 @@ sub _load_plugin {
 
 sub run {
     my $self = shift;
+
+    return 1 if ( $FileSync::SyncDiff::Notify::TEST );
 
     $self->start();
 
@@ -163,7 +166,7 @@ sub _load_linux {
         my $inotify = FileSync::SyncDiff::Notify::Plugin::Inotify2->new(
             dirs => @dirs,
             event_receiver => sub {
-               $self->_process_events(@_);
+                $self->_process_events(@_);
             }
         );
 
