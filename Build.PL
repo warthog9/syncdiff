@@ -27,6 +27,7 @@ my $builder = Module::Build->new(
         'Net::Address::IP::Local'   => 0,
         'IPC::ShareLite'            => 0,
         'MooseX::FileAttribute'     => 0,
+        'Mac::FSEvents'             => 0,
     },
     meta_merge     => {
         resources => {
