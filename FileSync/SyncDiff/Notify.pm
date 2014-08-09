@@ -53,7 +53,7 @@ use sigtrap 'handler' => \&_kill_handler, 'HUP', 'INT','ABRT','QUIT','TERM';
 use Data::Dumper;
 
 use constant PID_FILE => 'notify.pid';
-use constant PID_DIR  => '/var/run/';
+use constant PID_DIR  => './';
 
 has 'config' => (
         is  => 'rw',
@@ -74,9 +74,12 @@ sub _load_plugin {
         require FileSync::SyncDiff::Notify::Plugin::Inotify2;
         $self->_load_linux();
     }
-    elsif ( $^O =~ /bsd/i ) {
+    elsif ( $^O =~ /bsd/i || $^O =~ /darwin/i ) {
         require FileSync::SyncDiff::Notify::Plugin::KQueue;
         $self->_load_bsd();
+    }
+    else {
+        confess "$^O is not supported!";
     }
 
     return 1;
@@ -222,7 +225,7 @@ sub _process_events {
                                 Proto => 'tcp',
                                 );
                 if( ! $sock ){
-                    confess "Could not create socket: $!\n";
+                    cluck "Could not create socket: $!\n";
                     next;
                 } # end skipping if the socket is broken
 
