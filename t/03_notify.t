@@ -17,14 +17,11 @@ $dbconnection->connect_and_fork();
 if ( $^O =~ /linux/i ) {
     require_ok('FileSync::SyncDiff::Notify::Plugin::Inotify2');
 }
-elsif ( $^O =~ /bsd/i ) {
+elsif ( $^O =~ /bsd/i || $^O =~ /darwin/i ) {
     require_ok('FileSync::SyncDiff::Notify::Plugin::KQueue');
 }
 
-$FileSync::SyncDiff::Notify::TEST = 1;
 ok(my $notify = FileSync::SyncDiff::Notify->new( config => $config, dbref => $dbconnection ),'create notify object');
-
-ok($notify->run(),'run notify daemon');
 
 ok($notify->start(),'enable notify running flag and save it in cache memory');
 ok(defined $notify->stop(),'disabled notify running flag and save it in cache memory');

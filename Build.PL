@@ -27,7 +27,6 @@ my $builder = Module::Build->new(
         'Net::Address::IP::Local'   => 0,
         'IPC::ShareLite'            => 0,
         'MooseX::FileAttribute'     => 0,
-        'Mac::FSEvents'             => 0,
     },
     meta_merge     => {
         resources => {
@@ -37,10 +36,10 @@ my $builder = Module::Build->new(
     test      => {TESTS => 't/*.t'}
 );
 
-if ( $^O eq 'linux' ) {
+if ( $^O =~ /linux/i ) {
     $builder->requires('Linux::Inotify2' => 0);
 }
-elsif ( $^O eq 'freebsd' ) {
+elsif ( $^O =~ /bsd/i || $^O =~ /darwin/i ) {
     $builder->requires('IO::KQueue' => 0);
 }
 

@@ -30,7 +30,6 @@
 
 package FileSync::SyncDiff::Notify;
 $FileSync::SyncDiff::Notify::VERSION = '0.01';
-$FileSync::SyncDiff::Notify::TEST    = 0;
 
 use Moose;
 
@@ -87,8 +86,6 @@ sub _load_plugin {
 
 sub run {
     my $self = shift;
-
-    return 1 if ( $FileSync::SyncDiff::Notify::TEST );
 
     $self->start();
 
