@@ -89,11 +89,6 @@ sub run {
 
     $self->start();
 
-    if ( my $pid =  $self->is_alive() ){
-        print "Notifier is already running with $pid pid!";
-        return;
-    }
-
     $self->fork();
 }
 
@@ -141,16 +136,6 @@ sub is_running {
     } || return;
 
     return $share->fetch();
-}
-
-sub is_alive {
-    my $self = shift;
-
-    my $pid_obj = File::Pid->new({
-        file => catfile(PID_DIR, PID_FILE)
-    });
-
-    return $pid_obj->_get_pid_from_file();
 }
 
 sub _load_linux {
@@ -256,11 +241,15 @@ sub _daemonize {
         file => catfile(PID_DIR, PID_FILE)
     });
 
-    if( my $pid = $pid_obj->_get_pid_from_file() ){
+    my $pid;
+    eval {$pid = $pid_obj->running()};
+    if( $pid ){
         print "Notifier is already running with $pid pid!";
         exit(0);
     }
-    $pid_obj->write || confess("Can't write $!");
+
+    $pid_obj->pid($$);
+    $pid_obj->write() || confess("Can't write $!");
 
     return $pid_obj->pid;
 }
