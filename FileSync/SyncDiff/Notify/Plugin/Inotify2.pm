@@ -153,3 +153,34 @@ sub handle_event {
 }
 
 1;
+
+__END__
+
+=pod
+
+=head1 NAME
+
+FileSync::SyncDiff::Notify::Plugin::Inotify2 - Use Linux::Inotify2 to watch for changed files
+
+=head1 USAGE
+
+use FileSync::SyncDiff::Notify::Plugin::Inotify2;
+use AnyEvent;
+
+my $cv = AnyEvent->condvar;
+
+    my @monitor_dirs = ('/first/dir', '/second/dir');
+    my $inotify = FileSync::SyncDiff::Notify::Plugin::Inotify2->new(
+        dirs => @monitor_dirs,
+        event_receiver => sub {
+            # callback function
+        }
+    );
+
+$cv->recv;
+
+=head1 DESCRIPTION
+
+Linux notification backend based on Linux::Inotify2 package.
+
+=cut

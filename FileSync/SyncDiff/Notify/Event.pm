@@ -35,3 +35,22 @@ use Moose::Role;
 requires 'handle_modify';
 
 1;
+
+__END__
+
+=pod
+
+=head1 NAME
+
+FileSync::SyncDiff::Notify::Event - interface of event-receiving classes
+
+=head1 METHODS
+
+Event receivers must implement these methods.
+It could be expand to another type of events.
+
+=head2 handle_modify($file,$include)
+
+Called when C<$file> is modified. C<IN_MODIFY>.
+
+=cut

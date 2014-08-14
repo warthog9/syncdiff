@@ -269,3 +269,34 @@ sub handle_event {
 }
 
 1;
+
+__END__
+
+=pod
+
+=head1 NAME
+
+FileSync::SyncDiff::Notify::Plugin::KQueue - Use IO::KQueue to watch for changed files
+
+=head1 USAGE
+
+use FileSync::SyncDiff::Notify::Plugin::KQueue;
+use AnyEvent;
+
+my $cv = AnyEvent->condvar;
+
+    my @monitor_dirs = ('/first/dir', '/second/dir');
+    my $inotify = FileSync::SyncDiff::Notify::Plugin::KQueue->new(
+        dirs => @monitor_dirs,
+        event_receiver => sub {
+            # callback function
+        }
+    );
+
+$cv->recv;
+
+=head1 DESCRIPTION
+
+BSD/Mac notification backend based on IO::KQueue package.
+
+=cut

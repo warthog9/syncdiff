@@ -232,7 +232,7 @@ sub _kill_handler {
         file => catfile(PID_DIR, PID_FILE)
     });
     $pid_obj->remove;
-    exit(1);
+    exit(0);
 }
 
 sub _daemonize {

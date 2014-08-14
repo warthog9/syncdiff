@@ -53,3 +53,25 @@ for my $event (qw/modify/){
 with 'FileSync::SyncDiff::Notify::Event';
 
 1;
+
+__END__
+
+=pod
+
+=head1 NAME
+
+FileSync::SyncDiff::Notify::Event::Callback - delegates everything to a coderef
+
+=head2 callback
+
+Coderef to be called when an event is received.
+
+=head1 DESCRIPTION
+
+This Event delegates every event to the C<callback> coderef.
+The coderef gets the name of the event being delegated
+(now only modify,but it could be expand on another events)
+and the args that that event handler
+would normally get.
+
+=cut
