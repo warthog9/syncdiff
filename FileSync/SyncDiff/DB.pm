@@ -290,26 +290,6 @@ sub process_request {
 
 } # end process_request()
 
-sub new_client {
-	my( $self, $info ) = @_;
-	my( $hostname, $port ) = @{$info}{qw/hostname port/};
-	my $dbh = $self->dbh;
-
-	my $new_clients = $dbh->prepare("INSERT INTO clients_seen (hostname, port, timeadded) VALUES( ?, ?, strftime('%s','now') )");
-	$new_clients->execute( $hostname, $port ) or die $DBI::errstr;
-	$new_clients->finish();
-}
-
-sub delete_client {
-	my( $self, $info ) = @_;
-	my( $hostname, $port ) = @{$info}{qw/hostname port/};
-	my $dbh = $self->dbh;
-
-	my $new_clients = $dbh->prepare("DELETE FROM clients_seen WHERE hostname = ? AND port = ?");
-	$new_clients->execute( $hostname, $port ) or die $DBI::errstr;
-	$new_clients->finish();
-}
-
 sub clean_stop {
 	my( $self ) = @_;
 
@@ -348,8 +328,6 @@ sub create_database {
 	$dbh->do("CREATE TABLE if not exists transactions (id INTEGER PRIMARY KEY AUTOINCREMENT, transactionid TEXT, 'group' TEXT, timeadded INTEGER)");
 
 	$dbh->do("CREATE TABLE servers_seen (id INTEGER PRIMARY KEY AUTOINCREMENT, hostname TEXT unique, transactionid TEXT, 'group' TEXT, timeadded INTEGER)");
-
-	$dbh->do("CREATE TABLE clients_seen (id INTEGER PRIMARY KEY AUTOINCREMENT, hostname TEXT, port INTEGER, timeadded INTEGER)");
 
 	my $transaction_id = sha256_hex( hostname() ."-". $$ ."-". time() );
 
