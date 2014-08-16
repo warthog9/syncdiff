@@ -184,8 +184,6 @@ sub _process_events {
         # Notify daemon was stopped
         return if ( ! $self->is_running() );
 
-        print Dumper $event;
-
         while ( my($group_name, $group_data) = each(%{$self->config->config->{groups}}) ) {
 
             # Need to notify only those groups which contain a true include
