@@ -58,6 +58,8 @@ use Scalar::Util qw(looks_like_number);
 # Debugging
 #
 
+our $DEBUG = 0;
+
 use Data::Dumper;
 
 # End Includes
@@ -163,10 +165,10 @@ sub fork_and_connect {
 	my $dbref = $self->dbref();
 
 	print "Client::fork_and_connect - ". $self->group ." - ". $self->groupbase ."\n";
-	print Dumper $self->config_options;
+	print Dumper $self->config_options if $DEBUG;
 
 	print "Client::fork_and_connect - path\n";
-	print Dumper $self->groupbase_path;
+	print Dumper $self->groupbase_path if $DEBUG;
 
 	if( ! -e $self->groupbase_path ){
 		die( "Path: ". $self->groupbase_path ." does *NOT* exist in group ". $self->group ." - sadly dying now.\n" );
@@ -275,7 +277,7 @@ sub authenticate_to {
 	my $auth_status = $self->basic_send_request( %request );
 
 	print "authenticate_to status:\n";
-	print Dumper $auth_status;
+	print Dumper $auth_status if $DEBUG;
 
 	if( $auth_status == 0 ){
 		return 1;
@@ -296,7 +298,7 @@ sub request_protocol_versions {
 	my $versions = $self->basic_send_request( %request );
 
 	print "Got Back Version:\n";
-	print Dumper $versions;
+	print Dumper $versions if $DEBUG;
 
 	my $highest_proto_supported = "1.99";
 	my $proto_to_use = 0;
@@ -381,7 +383,7 @@ sub basic_send_request {
 	chomp( $line );
 
 	print "Basic send receive line back:\n";
-	print Dumper $line;
+	print Dumper $line if $DEBUG;
 
 	if( $line eq "0" ){
 		return 0;
@@ -389,7 +391,7 @@ sub basic_send_request {
 
 	my $response = decode_json( $line );
 
-	print Dumper $response;
+	print Dumper $response if $DEBUG;
 	print "Ref: ". ref( $response ). "\n";
 
 	if( ref( $response ) eq "ARRAY" ){

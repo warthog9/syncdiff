@@ -38,6 +38,8 @@ use Parse::Lex;
 use FileSync::SyncDiff::ParseCfg;
 use FileSync::SyncDiff::Util;
 
+our $DEBUG = 0;
+
 use Data::Dumper;
 
 has 'config' => (

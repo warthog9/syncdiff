@@ -57,6 +57,8 @@ use Digest::SHA qw(sha256_hex);
 # Debugging
 #
 
+our $DEBUG = 0;
+
 use Data::Dumper;
 
 # End includes
@@ -231,7 +233,7 @@ sub process_request {
 
 	if( ! defined $request->{operation} ){
 		print "FileSync::SyncDiff::DB->process_request() - No Operation specified!\n";
-		print Dumper $request;
+		print Dumper $request if $DEBUG;
 		return;
 	}
 
@@ -331,7 +333,7 @@ sub create_database {
 
 	my $transaction_id = sha256_hex( hostname() ."-". $$ ."-". time() );
 
-	print Dumper $self->config->config;
+	print Dumper $self->config->config if $DEBUG;
 	foreach my $group ( sort keys %{ $self->config->config->{groups} } ){
 		print "Group: $group\n";
 		$self->_new_transaction_id( $group, $transaction_id );
@@ -841,7 +843,7 @@ sub current_log_position {
 	my $response = $self->send_request( %request );
 
 	print "Got response and it is...\n";
-	print Dumper $response;
+	print Dumper $response if $DEBUG;
 	return $response;
 } # end current_log_position()
 
@@ -860,7 +862,7 @@ sub _current_log_position {
 
 	my $row_ref = $get_current_transaction_id->fetchall_hashref('id');
 	print "Current Log position stuff:\n";
-	print Dumper $row_ref;
+	print Dumper $row_ref if $DEBUG;
 
 	print "How many keys *ARE* there... ". ( scalar ( keys %{$row_ref} ) ) ."\n";
 	if(
@@ -941,7 +943,7 @@ sub _get_remote_log_position {
 
 	my $row_ref = $sth->fetchall_hashref('id');
 	print "Current Log position stuff:\n";
-	print Dumper $row_ref;
+	print Dumper $row_ref if $DEBUG;
 
 	print "How many keys *ARE* there... ". ( scalar ( keys %{$row_ref} ) ) ."\n";
 	if(
@@ -1034,7 +1036,7 @@ sub _get_files_changed_since {
 
 	my $row_ref = $sth->fetchall_hashref('id');
 	print "Files Found:\n";
-	print Dumper $row_ref;
+	print Dumper $row_ref if $DEBUG;
 
 	my @return_array = ();
 	my %return_hash = ();

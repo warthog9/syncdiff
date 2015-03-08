@@ -44,6 +44,8 @@ require Exporter;
 # Debugging
 #
 
+our $DEBUG = 0;
+
 use Data::Dumper;
 
 # End includes

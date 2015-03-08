@@ -61,6 +61,20 @@ sub display_help {
 	print "If you are running this you had better be John 'Warthog9' Hawley\n";
 }
 
+sub debug_mode {
+	require File::Find::Rule;
+	my %syncdiff_packs = map { $_ =~ m/SyncDiff/ ? ( $_ => $INC{$_} ) : () } keys %INC;
+	my @files = File::Find::Rule::find()->name('*.pm')->in(values %syncdiff_packs);
+	my @packs = map { $syncdiff_packs{$_} =~ s/(?:\\|\/|\.pm)/::/g; ($syncdiff_packs{$_}); } @files;
+	for $pack ( @packs ) {
+		my $debug_var = $pack.'DEBUG';
+		{
+			no strict 'refs';
+			${$debug_var} = 1;
+		}
+	}
+}
+
 #
 # Run something
 #
@@ -72,12 +86,14 @@ my $run_as_server;
 my $get_version;
 my $get_help;
 my $run_only_scan;
+my $debug_mode;
 GetOptions (
 		"c|config=s"	=> \$config_file,      # string
 		"s|server"	=> \$run_as_server,
 		"scan"		=> \$run_only_scan,
 		"v|version"	=> \$get_version,
 		"h|?|help"	=> \$get_help,
+		"debug"		=> \$debug_mode,
 	   );
 
 print "Config File: ". $config_file ."\n";
@@ -92,6 +108,10 @@ if( $get_version ){
 if( $get_help ){
 	display_help();
 	exit(0);
+}
+
+if ( $debug_mode ){
+	debug_mode();
 }
 
 #

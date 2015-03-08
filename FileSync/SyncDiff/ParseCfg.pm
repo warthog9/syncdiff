@@ -46,6 +46,8 @@ use Parse::Yapp::Driver;
 #line 1 "psync_cfg_parser.y"
  # start of the code section
 
+our $DEBUG = 0;
+
 use Data::Dumper;
 use Sys::Hostname;
 use File::FnMatch qw(:fnmatch);    # import everything
