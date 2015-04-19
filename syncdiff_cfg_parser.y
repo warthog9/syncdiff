@@ -46,6 +46,8 @@ my $ignore_uid = 0;
 my $ignore_gid = 0;
 my $ignore_mod = 0;
 
+my $debug_mode = 0;
+
 sub get_groups {
 	return %groups;
 }
@@ -56,6 +58,10 @@ sub get_prefixes {
 
 sub get_ignores {
 	return ($ignore_uid, $ignore_gid, $ignore_mod);
+}
+
+sub get_debug {
+	return $debug_mode;
 }
 
 sub new_group {
@@ -301,6 +307,16 @@ sub new_ignore {
 	}
 } # end new_ignore()
 
+sub debug_mode {
+	my ($debug) = @_;
+	if ( $debug == 1 || $debug == 0 ) {
+		$debug_mode = $debug // 0;
+	}
+	else {
+		print "\tdebug option should be 0 or 1 - IGNORING\n";
+	}
+}# end debug_mode()
+
 sub on_cygwin_lowercase {
 	my( $string ) = @_;
 #	print "function: on_cygwin_lowercase()\n";
@@ -325,7 +341,7 @@ sub disable_cygwin_lowercase_hack {
 }
 
 %token TK_BLOCK_BEGIN TK_BLOCK_END TK_STEND TK_AT TK_AUTO
-%token TK_IGNORE TK_GROUP TK_HOST TK_EXCL TK_INCL TK_COMP TK_KEY
+%token TK_IGNORE TK_GROUP TK_HOST TK_EXCL TK_INCL TK_COMP TK_KEY TK_DEBUG
 %token TK_ACTION TK_PATTERN TK_EXEC TK_DOLOCAL TK_LOGFILE TK_NOCYGLOWER
 %token TK_PREFIX TK_ON TK_COLON TK_POPEN TK_PCLOSE
 %token TK_BAK_DIR TK_BAK_GEN
@@ -345,6 +361,7 @@ block:
 		TK_BLOCK_BEGIN prefix_list TK_BLOCK_END
 		{ }
 |	TK_IGNORE ignore_list TK_STEND
+|	TK_DEBUG debug TK_STEND
 |	TK_NOCYGLOWER TK_STEND
 		{ disable_cygwin_lowercase_hack(); }
 ;
@@ -353,6 +370,12 @@ ignore_list:
 	/* empty */
 |	TK_STRING ignore_list
 		{ new_ignore($_[1]); }
+;
+
+debug:
+	/* empty */
+|	TK_STRING debug
+		{ debug_mode($_[1]); }
 ;
 
 prefix_list:

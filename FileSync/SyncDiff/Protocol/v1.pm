@@ -55,6 +55,8 @@ use Digest::SHA qw(sha256 sha256_hex sha256_base64);
 # Debugging
 #
 
+our $DEBUG = 0;
+
 use Data::Dumper;
 
 #
@@ -151,7 +153,7 @@ sub client_run {
 		my $file_updates = $self->get_updates_from_remote( $remote_previous_log_position);
 
 		print "Files changed array:\n";
-		print Dumper $file_updates;
+		print Dumper $file_updates if $DEBUG;
 		print "^^^^^^^^^^^^^^^^^^^^\n";
 
 		print "Going to save this out as: ". $self->hostname ." | ". $self->group ." | ". $remote_current_log_position ."\n";
@@ -172,7 +174,7 @@ sub get_updates_from_remote {
 	my $response = $self->send_request( %request );
 
 	print "Files Changed Since $remote_previous_log_position:\n";
-	print Dumper $response;
+	print Dumper $response if $DEBUG;
 
 	my $x = 0;
 	my $num_keys = keys %{$response};
@@ -190,7 +192,7 @@ sub get_updates_from_remote {
 		$temp_file->from_hash( $response->{$id} );	
 
 		print "Before fork:\n";
-		print Dumper $temp_file;
+		print Dumper $temp_file if $DEBUG;
 
 		my $pid = 0;
 
@@ -277,7 +279,7 @@ sub get_updates_from_remote {
 			$new_file_obj->get_file( $temp_file->filepath, $self->group, $self->groupbase );
 			$new_file_obj->checksum_file();
 
-			print Dumper $new_file_obj;
+			print Dumper $new_file_obj if $DEBUG;
 
 			print "External checking of checksum: \n";
 			print "Passed checksum: ". $temp_file->checksum() ."\n";
@@ -381,7 +383,7 @@ sub sync_file {
 		print "*******************************************\n";
 		print "This isn't the response we are expecting...\n";
 		print "*******************************************\n";
-		print Dumper $response_hash;
+		print Dumper $response_hash if $DEBUG;
 		print "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n";
 		$response_hash = $self->plain_receiver( \%request );
 	}
@@ -403,7 +405,7 @@ sub sync_file {
 		print "EXTRA: $line\n";
 	}
 
-	print Dumper $response_hash;
+	print Dumper $response_hash if $DEBUG;
 
 	my $checksum_resp = sha256_base64($response_hash->{delta});
 	print "v1 - response_hash calculated: ". $checksum_resp ."\n";
@@ -487,7 +489,7 @@ sub _get_files_changed_since {
 	my $file_list = $dbref->get_files_changed_since( $self->group, $transactionid );
 
 	print "V1: Files found changed since $transactionid\n";
-	print Dumper $file_list;
+	print Dumper $file_list if $DEBUG;
 
 	return $file_list
 } # end get_files_changed_since()
@@ -627,7 +629,7 @@ sub _syncfile {
 	print $sig decode_base64( $signature64 );;
 	seek $sig, 0, 0;
 
-	print Dumper $sig;
+	print Dumper $sig if $DEBUG;
 
 	print "Loading sig file\n";
 

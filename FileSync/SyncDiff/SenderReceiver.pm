@@ -57,6 +57,8 @@ use Digest::SHA qw(sha256 sha256_hex sha256_base64);
 # Debugging
 #
 
+our $DEBUG = 0;
+
 use Data::Dumper;
 
 # End Includes
@@ -389,7 +391,7 @@ sub print_debug {
 		return;
 	}
 
-	print Dumper $temp_req;
+	print Dumper $temp_req if $DEBUG;
 
 	if( defined $temp_delta ){
 		$request->{delta} = $temp_delta;

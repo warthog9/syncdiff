@@ -52,6 +52,8 @@ use JSON::XS;
 # Debugging
 #
 
+our $DEBUG = 0;
+
 use Data::Dumper;
 
 # End includes
