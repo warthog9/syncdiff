@@ -28,20 +28,48 @@
 # Or, see <http://www.gnu.org/licenses/>.                                 #
 ###########################################################################
 
-use Plack::Request;
+use strict;
+use warnings;
+
+use Plack::Util;
+use Getopt::Long;
 use Data::Dumper;
 
-my $app = sub {
-    my $env = shift;
+MAIN: {
+    my %opts;
+    GetOptions( \%opts, "backend=s", "psgi=s", "help" );
 
-    my $req = Plack::Request->new($env);
-    my ( $key, $dir, $ip) = ( undef, undef, undef );
-
-    if ( $req->method eq 'POST' ) {
-        #CGI compatible
-        ( $key, $dir, $ip ) = ( $req->param('key'), $req->param('include'), $req->address );
+    if ( $opts{help} ) {
+        display_help();
+        exit(0);
     }
 
-    my $res = $req->new_response(200);
-    return $res->finalize;
-};
+    run(\%opts);
+}
+
+sub run {
+    my $args = shift;
+    my $psgi = $args->{psgi};
+
+    #ENV info
+    my $env = {};
+    if ( $args->{backend} =~ /(:cgi|fcgi)/i ) {
+        require 'Plack::Loader';
+        my $app = Plack::Util::load_psgi($psgi);
+        Plack::Loader->auto->run($app);
+    }
+    else {
+        my $app = do($psgi);
+        Plack::Util::run_app $app, $env;
+    }
+}
+
+sub display_help {
+    print STDOUT << 'HELP'
+    It helps to run PSGI app as FCGI/CGI
+
+    --backend=[fcgi|cgi|psgi]
+    --psgi=/path/to/psgi/file
+
+HELP
+}
