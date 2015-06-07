@@ -51,6 +51,7 @@ use JSON::XS;
 use MIME::Base64;
 use IO::Socket;
 use IO::Handle;
+use LWP::UserAgent;
 
 use Scalar::Util qw(looks_like_number);
 
@@ -206,59 +207,76 @@ sub fork_and_connect {
 	#
 
 	foreach my $host ( @{ $self->config_options->{groups}->{ $self->group }->{host} } ){
-		print "Host: ". $host ."\n";
-		my $ip = $self->dbref->gethostbyname( $host );
+		print "Host: ". $host->{hostname} ."\n";
+		my $ip = $self->dbref->gethostbyname( $host->{hostname} );
 		print "Ip: ". $ip ."\n";
-		my $sock = new IO::Socket::INET (
-						PeerAddr => $ip,
-						PeerPort => '7070',
-						Proto => 'tcp',
-						);
-		if( ! $sock ){
-			print "Could not create socket: $!\n";
-			next;
-		} # end skipping if the socket is broken
+		if ( $host->{is_uri} ) {
+			my %agent_opt = ( timeout => 10);
+			my $ua = LWP::UserAgent->new(%agent_opt);
 
-		$sock->autoflush(1);
-
-		$self->socket( $sock );
-
-#		print $sock "Hello World!\n";
-#
-		#
-		# We need to authenticate against the server
-		# before we try to negotiate a protocol
-		#
-
-		my $auth_status = $self->authenticate_to( $dbref->getlocalhostname, $self->group, $self->config_options->{groups}->{ $self->group }->{key} );
-
-		print "Auth Status: $auth_status\n";
-
-		if( $auth_status == 0 ){
-			print "Authentication failed for $host\n";
-			$sock->shutdown(2);
-			next;
+			my $params = {
+				key => $self->config_options->{groups}->{ $self->group }->{key},
+				include => '',
+				host => $dbref->getlocalhostname
+			};
+			my $response = $ua->post($host->{hostname},$params);
+			if ( $response->is_success ) {
+				print STDOUT "Success request on $host->{hostname} \n";
+			}
+			else {
+				print STDERR "Failed to sent request on $host->{hostname} \n";
+			}
 		}
+		else {
+			my $sock = new IO::Socket::INET (
+							PeerAddr => $ip,
+							PeerPort => '7070',
+							Proto => 'tcp',
+							);
+			if( ! $sock ){
+				print "Could not create socket: $!\n";
+				next;
+			} # end skipping if the socket is broken
 
-		#
-		# Ok, here we get the proper protocol all worked out
-		#
-		$self->request_protocol_versions( $host );
+			$sock->autoflush(1);
 
-		#
-		# Next we should let the protocol object take over
-		# and run with the connection.  It's not our job
-		# (here) to tell it what / how to do things.  If we 
-		# do we run the risk of making future protocol changes
-		# complex or a major issue.  Pass it on and let go
-		#
+			$self->socket( $sock );
 
-		print "Protocol should be setup\n";
-		my $protocol_obj = $self->protocol_object();
+			#
+			# We need to authenticate against the server
+			# before we try to negotiate a protocol
+			#
 
-		$protocol_obj->client_run(); 
+			my $auth_status = $self->authenticate_to( $dbref->getlocalhostname, $self->group, $self->config_options->{groups}->{ $self->group }->{key} );
 
-		close( $sock );
+			print "Auth Status: $auth_status\n";
+
+			if( $auth_status == 0 ){
+				print "Authentication failed for $host->{hostname}\n";
+				$sock->shutdown(2);
+				next;
+			}
+
+			#
+			# Ok, here we get the proper protocol all worked out
+			#
+			$self->request_protocol_versions( $host->{hostname} );
+
+			#
+			# Next we should let the protocol object take over
+			# and run with the connection.  It's not our job
+			# (here) to tell it what / how to do things.  If we 
+			# do we run the risk of making future protocol changes
+			# complex or a major issue.  Pass it on and let go
+			#
+
+			print "Protocol should be setup\n";
+			my $protocol_obj = $self->protocol_object();
+
+			$protocol_obj->client_run(); 
+
+			close( $sock );
+		}
 	} # end foreach $host
 } # end fork_and_connect()
 

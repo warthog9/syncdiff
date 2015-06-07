@@ -35,11 +35,11 @@ my $app = sub {
     my $env = shift;
 
     my $req = Plack::Request->new($env);
-    my ( $key, $dir, $ip) = ( undef, undef, undef );
+    my ( $key, $dir, $host) = ( undef, undef, undef );
 
     if ( $req->method eq 'POST' ) {
         #CGI compatible
-        ( $key, $dir, $ip ) = ( $req->param('key'), $req->param('include'), $req->address );
+        ( $key, $dir, $host ) = ( $req->param('key'), $req->param('include'), $req->param('host') );
     }
 
     my $res = $req->new_response(200);

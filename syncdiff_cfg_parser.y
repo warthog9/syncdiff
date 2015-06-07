@@ -78,15 +78,28 @@ sub add_host {
 	my ($hostname) = @_;
 	my $local_hostname = hostname;
 
-#	print "function: add_host()\n";
-#
-#	print "\tadd_host: ". $hostname ."\n";
+	# IPv4 and URI regex
+	# It could be quoted
+	my $ip_part = qr/([0-9]|[0-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])/;
+	my $ip_reg  = qr/^["']?(?<hostname>($ip_part\.){3}$ip_part)["']?$/;
+	my $uri_reg = qr/^["']?http[s]?:\/\/(?<hostname>.*?)["']?$/;
 
-	$hostname = lc($hostname);
-	$local_hostname = lc($local_hostname);
+	# A flag which indicated host format
+	my $is_uri = 0;
+
+	if ( $hostname =~ m/$ip_reg/ ) {
+		$hostname = $+{hostname};
+	}
+	elsif ( $hostname =~ m/$uri_reg/ ) {
+		$hostname = $+{hostname};
+		$is_uri = 1;
+	}
+	else {
+		print STDERR "Invalid host format\n";
+		return;
+	}
 
 	if( $hostname eq $local_hostname){
-		#print "\t~~ Found ourselves\n";
 		return;
 	} 
 
@@ -99,14 +112,12 @@ sub add_host {
 		$groups{$curgroup}->{'host'} = \@temparray;
 	}
 
-#	print Dumper \@_;
+	my @temparray = ( {
+		hostname => $hostname,
+		is_uri   => $is_uri,
+	} );
 
-	my @temparray = ( $hostname, );
-
-#	print Dumper \@temparray;
-#	print Dumper $groups{$curgroup}->{'host'};
-
-	push( @{ $groups{$curgroup}->{'host'} }, $hostname);
+	push( @{ $groups{$curgroup}->{'host'} }, @temparray);
 } # end add_host
 
 sub add_patt {
