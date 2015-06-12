@@ -52,6 +52,7 @@ use MIME::Base64;
 use IO::Socket;
 use IO::Handle;
 use LWP::UserAgent;
+use URI;
 
 use Scalar::Util qw(looks_like_number);
 
@@ -207,30 +208,35 @@ sub fork_and_connect {
 	#
 
 	foreach my $host ( @{ $self->config_options->{groups}->{ $self->group }->{host} } ){
-		print "Host: ". $host->{hostname} ."\n";
-		my $ip = $self->dbref->gethostbyname( $host->{hostname} );
+		print "Host: ". $host->{host} ."\n";
+		my $ip = $self->dbref->gethostbyname( $host->{host} );
 		print "Ip: ". $ip ."\n";
-		if ( $host->{is_uri} ) {
+		if ( $host->{proto} && $host->{proto} =~ /^http[s]?$/ ) {
 			my %agent_opt = ( timeout => 10);
-			my $ua = LWP::UserAgent->new(%agent_opt);
+			my $ua  = LWP::UserAgent->new(%agent_opt);
+			my $uri = URI->new();
 
 			my $params = {
 				key => $self->config_options->{groups}->{ $self->group }->{key},
-				include => '',
-				host => $dbref->getlocalhostname
+				include => $self->groupbase_path,
+				host => $dbref->getlocalhostname()
 			};
-			my $response = $ua->post($host->{hostname},$params);
+			$uri->scheme($host->{proto});
+			$uri->host($host->{host});
+			$uri->port($host->{port});
+
+			my $response = $ua->post($uri,$params);
 			if ( $response->is_success ) {
-				print STDOUT "Success request on $host->{hostname} \n";
+				print STDOUT "Success request on $host->{host} \n";
 			}
 			else {
-				print STDERR "Failed to sent request on $host->{hostname} \n";
+				print STDERR "Failed to sent request on $host->{host} \n";
 			}
 		}
 		else {
 			my $sock = new IO::Socket::INET (
 							PeerAddr => $ip,
-							PeerPort => '7070',
+							PeerPort => $host->{port} || '7070',
 							Proto => 'tcp',
 							);
 			if( ! $sock ){
@@ -252,7 +258,7 @@ sub fork_and_connect {
 			print "Auth Status: $auth_status\n";
 
 			if( $auth_status == 0 ){
-				print "Authentication failed for $host->{hostname}\n";
+				print "Authentication failed for $host->{host}\n";
 				$sock->shutdown(2);
 				next;
 			}
@@ -260,7 +266,7 @@ sub fork_and_connect {
 			#
 			# Ok, here we get the proper protocol all worked out
 			#
-			$self->request_protocol_versions( $host->{hostname} );
+			$self->request_protocol_versions( $host->{host} );
 
 			#
 			# Next we should let the protocol object take over

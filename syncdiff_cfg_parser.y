@@ -31,6 +31,7 @@
 use Data::Dumper;
 use Sys::Hostname;
 use File::FnMatch qw(:fnmatch);    # import everything
+use URI;
 
 my $autonum = 0;
 
@@ -78,46 +79,47 @@ sub add_host {
 	my ($hostname) = @_;
 	my $local_hostname = hostname;
 
-	# IPv4 and URI regex
-	# It could be quoted
-	my $ip_part = qr/([0-9]|[0-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])/;
-	my $ip_reg  = qr/^["']?(?<hostname>($ip_part\.){3}$ip_part)["']?$/;
-	my $uri_reg = qr/^["']?http[s]?:\/\/(?<hostname>.*?)["']?$/;
-
-	# A flag which indicated host format
-	my $is_uri = 0;
-
-	if ( $hostname =~ m/$ip_reg/ ) {
-		$hostname = $+{hostname};
-	}
-	elsif ( $hostname =~ m/$uri_reg/ ) {
-		$hostname = $+{hostname};
-		$is_uri = 1;
-	}
-	else {
-		print STDERR "Invalid host format\n";
-		return;
-	}
+	$hostname = lc($hostname);
+	$local_hostname = lc($local_hostname);
 
 	if( $hostname eq $local_hostname){
 		return;
 	} 
 
-	if(
-		$groups{$curgroup}->{'host'} == undef
-		||
-		$groups{$curgroup}->{'host'} eq ""
-	){
-		my @temparray = ();
-		$groups{$curgroup}->{'host'} = \@temparray;
+	if( $groups{$curgroup}->{'host'} ){
+		$groups{$curgroup}->{'host'} = \();
+		return;
 	}
 
-	my @temparray = ( {
-		hostname => $hostname,
-		is_uri   => $is_uri,
+	my $uri = URI->new($hostname);
+	my ($host, $port) = (undef,undef);
+	my $proto = eval { $uri->scheme() };
+	if ($@) {
+		print STDERR "Invalid protocol name \n";
+	}
+
+	if ( $proto ) {
+		eval {
+			$host = $uri->host();
+			$port = $uri->port();
+		};
+		if ($@) {
+			print STDERR "Invalid host format $@ \n";
+			return;
+		}
+	}
+	else {
+		$host = $hostname;
+		$port = 7070;
+	}
+
+	my @uri_info = ( {
+		host  => $host,
+		port  => $port,
+		proto => $proto,
 	} );
 
-	push( @{ $groups{$curgroup}->{'host'} }, @temparray);
+	push( @{ $groups{$curgroup}->{'host'} }, @uri_info);
 } # end add_host
 
 sub add_patt {
