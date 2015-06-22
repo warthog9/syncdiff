@@ -211,6 +211,8 @@ sub fork_and_connect {
 		print "Host: ". $host->{host} ."\n";
 		my $ip = $self->dbref->gethostbyname( $host->{host} );
 		print "Ip: ". $ip ."\n";
+		my $port =  $host->{port} || '7070';
+
 		if ( $host->{proto} && $host->{proto} =~ /^http[s]?$/ ) {
 			my %agent_opt = ( timeout => 10);
 			my $ua  = LWP::UserAgent->new(%agent_opt);
@@ -231,58 +233,65 @@ sub fork_and_connect {
 			}
 			else {
 				print STDERR "Failed to sent request on $host->{host} \n";
-			}
-		}
-		else {
-			my $sock = new IO::Socket::INET (
-							PeerAddr => $ip,
-							PeerPort => $host->{port} || '7070',
-							Proto => 'tcp',
-							);
-			if( ! $sock ){
-				print "Could not create socket: $!\n";
-				next;
-			} # end skipping if the socket is broken
-
-			$sock->autoflush(1);
-
-			$self->socket( $sock );
-
-			#
-			# We need to authenticate against the server
-			# before we try to negotiate a protocol
-			#
-
-			my $auth_status = $self->authenticate_to( $dbref->getlocalhostname, $self->group, $self->config_options->{groups}->{ $self->group }->{key} );
-
-			print "Auth Status: $auth_status\n";
-
-			if( $auth_status == 0 ){
-				print "Authentication failed for $host->{host}\n";
-				$sock->shutdown(2);
-				next;
+				return undef;
 			}
 
-			#
-			# Ok, here we get the proper protocol all worked out
-			#
-			$self->request_protocol_versions( $host->{host} );
+			my $json = decode_json($response->decoded_content);
+			if ( $json ) {
+				$ip   = $json->{host} ? $json->{host} : $ip;
+				$port = $json->{port} ? $json->{port} : $port;
+			}
 
-			#
-			# Next we should let the protocol object take over
-			# and run with the connection.  It's not our job
-			# (here) to tell it what / how to do things.  If we 
-			# do we run the risk of making future protocol changes
-			# complex or a major issue.  Pass it on and let go
-			#
-
-			print "Protocol should be setup\n";
-			my $protocol_obj = $self->protocol_object();
-
-			$protocol_obj->client_run(); 
-
-			close( $sock );
 		}
+
+		my $sock = IO::Socket::INET->new(
+						PeerAddr => $ip,
+						PeerPort => $port,
+						Proto => 'tcp',
+						);
+		if( ! $sock ){
+			print "Could not create socket: $!\n";
+			next;
+		} # end skipping if the socket is broken
+
+		$sock->autoflush(1);
+
+		$self->socket( $sock );
+
+		#
+		# We need to authenticate against the server
+		# before we try to negotiate a protocol
+		#
+
+		my $auth_status = $self->authenticate_to( $dbref->getlocalhostname, $self->group, $self->config_options->{groups}->{ $self->group }->{key} );
+
+		print "Auth Status: $auth_status\n";
+
+		if( $auth_status == 0 ){
+			print "Authentication failed for $host->{host}\n";
+			$sock->shutdown(2);
+			next;
+		}
+
+		#
+		# Ok, here we get the proper protocol all worked out
+		#
+		$self->request_protocol_versions( $host->{host} );
+
+		#
+		# Next we should let the protocol object take over
+		# and run with the connection.  It's not our job
+		# (here) to tell it what / how to do things.  If we 
+		# do we run the risk of making future protocol changes
+		# complex or a major issue.  Pass it on and let go
+		#
+
+		print "Protocol should be setup\n";
+		my $protocol_obj = $self->protocol_object();
+
+		$protocol_obj->client_run(); 
+
+		close( $sock );
 	} # end foreach $host
 } # end fork_and_connect()
 

@@ -6,18 +6,21 @@ my $class = Module::Build->subclass(code => <<'YAPP');
 require Parse::Yapp;
 sub process_yapp_files {
     my $self = shift;
-    print "Build yapp files\n";
 
-    my $yapp_file = q{syncdiff_cfg_parser.y};
-    my ($pack_file, $pack_name) = ("FileSync/SyncDiff/ParseCfg.pm", "FileSync::SyncDiff::ParseCfg");
-    eval {
-        my ($yapp) = Parse::Yapp->new(inputfile => $yapp_file);
-        open(my $fh, '>', $pack_file);
-        print $fh $yapp->Output(classname => $pack_name);
-        close($fh);
-    };
-    if ($@) {
-        print "Can not build yapp files $! \n";
+    if ( $self->{invoked_action} && $self->{invoked_action} =~ m/^build$/i ) {
+        print "Build yapp files\n";
+
+        my $yapp_file = q{syncdiff_cfg_parser.y};
+        my ($pack_file, $pack_name) = ("FileSync/SyncDiff/ParseCfg.pm", "FileSync::SyncDiff::ParseCfg");
+        eval {
+            my ($yapp) = Parse::Yapp->new(inputfile => $yapp_file);
+            open(my $fh, '>', $pack_file);
+            print $fh $yapp->Output(classname => $pack_name);
+            close($fh);
+        };
+        if ($@) {
+            print "Can not build yapp files $! \n";
+        }
     }
 }
 YAPP

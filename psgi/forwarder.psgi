@@ -30,6 +30,9 @@
 
 use Plack::Request;
 use Data::Dumper;
+use JSON::XS;
+
+use FileSync::SyncDiff::Forwarder;
 
 my $app = sub {
     my $env = shift;
@@ -40,8 +43,17 @@ my $app = sub {
     if ( $req->method eq 'POST' ) {
         #CGI compatible
         ( $key, $dir, $host ) = ( $req->param('key'), $req->param('include'), $req->param('host') );
+
+        my $forwarder = FileSync::SyncDiff::Forwarder->new(
+            client => { host => $host, auth_key => $key, dir => $dir },
+        );
+        $forwarder->run();
+        my $body = encode_json({
+            host => $forwarder->middleware->{host},
+            port => $forwarder->middleware->{port},
+        });
+        return [ 200, ['Content-Type', 'application/json'], [ $body ] ];
     }
 
-    my $res = $req->new_response(200);
-    return $res->finalize;
+    return [ 200, ['Content-Type', 'text/html'], [] ];
 };
