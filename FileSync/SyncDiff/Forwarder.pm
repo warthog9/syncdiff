@@ -41,7 +41,9 @@ extends 'FileSync::SyncDiff::Forkable';
 use IO::Socket;
 use IO::Socket::INET;
 use IO::Socket::Forwarder qw(forward_sockets);
-use Sys::Hostname;
+use Net::Domain qw(domainname);
+use HTTP::Response;
+use JSON::XS qw(encode_json);
 
 #
 # Debugging
@@ -51,6 +53,11 @@ use Data::Dumper;
 #
 # moose variables
 #
+has 'dbref' => (
+    is  => 'rw',
+    isa => 'Object',
+    required => 1,
+);
 
 has 'client' => (
     is       => 'rw',
@@ -65,7 +72,7 @@ has 'server' => (
     default  => sub {
         {
             port  => '7070',
-            host  => inet_ntoa(inet_aton(hostname())),
+            host  => inet_ntoa(inet_aton(domainname())),
             proto => 'tcp',
         }
     },
@@ -77,16 +84,50 @@ has 'middleware' => (
     default  => sub {
         {
             port  => '7069',
-            host  => inet_ntoa(inet_aton(hostname())),
+            host  => inet_ntoa(inet_aton(domainname())),
             proto => 'tcp',
         }
     },
 );
 
+has 'response' => (
+    is      => 'ro',
+    isa     => 'HTTP::Response',
+    default => sub {
+        my ($code, $msg) = (200,'Success response!');
+        return HTTP::Response->new($code,$msg);
+    }
+
+);
+
+#
+# constants
+#
+use constant {
+    FIRST_PUBLIC_PORT => 1025,
+    MAX_PORT_NUMBER   => 65535,
+    TRY_PORT_LIMIT    => 10000,
+};
+
 sub run {
     my( $self ) = @_;
+    if ( !$self->dbref->is_exists_connection($self->client) ) {
+        if ( my $port = $self->_get_random_port() ) {
+            $self->middleware->{port} = $port;
+            my $content = encode_json({
+                host => $self->middleware->{host},
+                port => $port,
+            });
+            $self->response->content($content);
+            $self->fork();
+        }
+    }
+    else {
+        $self->response->code(500);
+        $self->response->message("Client's already connect");
+    }
 
-    $self->fork();
+    return $self->response;
 } # end run()
 
 #
@@ -99,13 +140,35 @@ override 'run_child' => sub {
     $self->_forward();
 }; # end run_child()
 
+sub _get_random_port {
+    my ( $self ) = @_;
+
+    my $port   = undef;
+    my $socket = undef;
+    my $limit  = 0;
+    do {
+        $port = int( rand( MAX_PORT_NUMBER - FIRST_PUBLIC_PORT ) + FIRST_PUBLIC_PORT );
+        $socket = eval {
+            IO::Socket::INET->new(
+                LocalPort => $port,
+                Proto => 'tcp',
+                Timeout => 1
+                );
+        };
+        ++$limit;
+    } until( $socket || $limit > TRY_PORT_LIMIT );
+
+    close($socket) if ( defined $socket );
+
+    return $port;
+}
+
 sub _forward {
     my ( $self ) = @_;
 
     my $listener = eval {
         IO::Socket::INET->new(
             LocalPort => $self->middleware->{port},
-            LocalAddr => $self->middleware->{host},
             Proto => $self->middleware->{proto},
             Listen => 2,
             ReuseAddr => 1
@@ -115,6 +178,9 @@ sub _forward {
         print STDERR "Could not create socket $@";
         return undef;
     }
+
+    $self->client->{port} = $self->middleware->{port};
+    $self->dbref->new_connection($self->client);
 
     while ( 1 ) {
         my $client = $listener->accept();
@@ -132,7 +198,7 @@ sub _forward {
 
         $server->autoflush(1);
 
-        forward_sockets($client, $server, debug => 1);
+        forward_sockets($client, $server);
     }
 
     return 1;

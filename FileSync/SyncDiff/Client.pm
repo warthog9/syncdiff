@@ -51,8 +51,10 @@ use JSON::XS;
 use MIME::Base64;
 use IO::Socket;
 use IO::Handle;
+use IO::Socket::INET;
 use LWP::UserAgent;
 use URI;
+use Net::Domain qw(domainname);
 
 use Scalar::Util qw(looks_like_number);
 
@@ -214,14 +216,14 @@ sub fork_and_connect {
 		my $port =  $host->{port} || '7070';
 
 		if ( $host->{proto} && $host->{proto} =~ /^http[s]?$/ ) {
-			my %agent_opt = ( timeout => 10);
+			my %agent_opt = ( timeout => 10 );
 			my $ua  = LWP::UserAgent->new(%agent_opt);
 			my $uri = URI->new();
 
 			my $params = {
 				key => $self->config_options->{groups}->{ $self->group }->{key},
 				include => $self->groupbase_path,
-				host => $dbref->getlocalhostname()
+				host => inet_ntoa(inet_aton(domainname())),
 			};
 			$uri->scheme($host->{proto});
 			$uri->host($host->{host});
@@ -229,10 +231,11 @@ sub fork_and_connect {
 
 			my $response = $ua->post($uri,$params);
 			if ( $response->is_success ) {
-				print STDOUT "Success request on $host->{host} \n";
+				print STDOUT "Success response from $host->{host}\n";
 			}
 			else {
-				print STDERR "Failed to sent request on $host->{host} \n";
+				my $msg = $response->message;
+				print STDERR "Failed response from $host->{host}: $msg\n";
 				return undef;
 			}
 

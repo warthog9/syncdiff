@@ -30,9 +30,11 @@
 
 use Plack::Request;
 use Data::Dumper;
-use JSON::XS;
+use FindBin qw($Bin);
 
 use FileSync::SyncDiff::Forwarder;
+use FileSync::SyncDiff::Config;
+use FileSync::SyncDiff::DB;
 
 my $app = sub {
     my $env = shift;
@@ -40,19 +42,24 @@ my $app = sub {
     my $req = Plack::Request->new($env);
     my ( $key, $dir, $host) = ( undef, undef, undef );
 
+    my $config = FileSync::SyncDiff::Config->new();
+    $config->read_config( "$Bin/../syncdiff.cfg" );
+
+    my $db = FileSync::SyncDiff::DB->new( config => $config );
+    $db->file( "$Bin/../psync.sqlite" );
+    $db->connect_and_fork();
+
     if ( $req->method eq 'POST' ) {
         #CGI compatible
         ( $key, $dir, $host ) = ( $req->param('key'), $req->param('include'), $req->param('host') );
 
         my $forwarder = FileSync::SyncDiff::Forwarder->new(
-            client => { host => $host, auth_key => $key, dir => $dir },
+            dbref  => $db,
+            client => { host => $host, auth_key => $key, syncbase => $dir },
         );
-        $forwarder->run();
-        my $body = encode_json({
-            host => $forwarder->middleware->{host},
-            port => $forwarder->middleware->{port},
-        });
-        return [ 200, ['Content-Type', 'application/json'], [ $body ] ];
+        my $response = $forwarder->run();
+
+        return [ $response->code, ['Content-Type', 'application/json'], [ $response->content ] ];
     }
 
     return [ 200, ['Content-Type', 'text/html'], [] ];

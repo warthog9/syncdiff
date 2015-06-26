@@ -329,6 +329,8 @@ sub create_database {
 
 	$dbh->do("CREATE TABLE servers_seen (id INTEGER PRIMARY KEY AUTOINCREMENT, hostname TEXT unique, transactionid TEXT, 'group' TEXT, timeadded INTEGER)");
 
+	$dbh->do("CREATE TABLE if not exists connections (id INTEGER PRIMARY KEY AUTOINCREMENT, host TEXT, port TEXT, auth_key TEXT, syncbase TEXT, timeadded INTEGER)");
+
 	my $transaction_id = sha256_hex( hostname() ."-". $$ ."-". time() );
 
 	print Dumper $self->config->config;
@@ -389,6 +391,41 @@ sub send_request {
 	}
 
 	return $response;
+}
+
+sub new_connection {
+	my ($self,$info) = @_;
+	my $dbh = $self->dbh;
+
+	my $add_connection = $dbh->prepare("INSERT INTO connections (host, port, auth_key, syncbase, timeadded) VALUES( ?, ?, ?, ?, strftime('%s','now') )");
+	$add_connection->execute( $info->{host}, $info->{port}, $info->{auth_key}, $info->{syncbase} ) || die $DBI::errstr;
+
+	return 1;
+}
+
+sub clean_connection {
+	my ($self,$info) = @_;
+	my $dbh = $self->dbh;
+
+	my $del_connection = $dbh->prepare("DELETE FROM connections WHERE host = ? AND port = ? AND auth_key = ? AND syncbase = ?");
+	$del_connection->execute( $info->{host}, $info->{port}, $info->{auth_key}, $info->{syncbase} ) || die $DBI::errstr;
+
+	return 1;
+}
+
+sub is_exists_connection {
+	my ($self,$info) = @_;
+	my $dbh = $self->dbh;
+
+	my $sth = $dbh->prepare("SELECT * FROM connections WHERE host = ? AND auth_key = ? AND syncbase = ?");
+	$sth->execute( $info->{host}, $info->{auth_key}, $info->{syncbase} ) || die $DBI::errstr;
+
+	my $row_ref = $sth->fetchall_hashref('id');
+	if( scalar ( keys %$row_ref ) != 0 ){
+		return 1;
+	}
+
+	return 0;
 }
 
 sub new_transaction_id {

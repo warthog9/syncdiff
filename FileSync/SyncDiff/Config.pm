@@ -94,7 +94,7 @@ sub read_config {
 			NL		[\n\r]
 		),
 		qw(COMMENT), "#.*\n*" ,
-		qw(TK_STRING),	[qw(" (?:[^"]+|"")* ")],
+		qw(TK_STRING),	[qw(["'] (?:[^"]+|"")* ["'])],
 		qw(TK_STRING), q([^\s;:{}\(\)\@\n\r\#]+),
 		qw(config), sub {
 			print "got an additional config file $_[1]\n";
@@ -213,6 +213,12 @@ sub lex {
 	my($self) = @_;
 	
 	my $token = ${ $self->{lexer} }->next;
+
+	if ( $token->name =~ m/^TK_STRING$/ ) {
+		# Cut ' and " in beginning
+		(my $text = $token->text) =~ m/(['"])?(?<str>.*?)\g{-2}/;
+		$token->text($+{str});
+	}
 
 	#return("\n", "\n") if( $token->name eq "NL" );
 	while( $token->name eq "NL" || $token->name eq "COMMENT"){
