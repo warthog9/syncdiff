@@ -59,7 +59,7 @@ my $app = sub {
         );
         my $response = $forwarder->run();
 
-        return [ $response->code, ['Content-Type', 'application/json'], [ $response->content ] ];
+        return [ $response->{code}, ['Content-Type', $response->{content_type}], [ $response->{content} ] ];
     }
 
     return [ 200, ['Content-Type', 'text/html'], [] ];

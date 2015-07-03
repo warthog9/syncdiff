@@ -177,15 +177,6 @@ sub fork_and_connect {
 	}
 
 	#
-	# Going chroot
-	# 	everything else we need should
-	# 	be in the chroot, or accessible
-	# 	via pipes
-	#
-	chroot( $self->groupbase_path );
-	chdir("/");
-
-	#
 	# Ok now we need to connect to the
 	# various hosts associated with
 	# this group.  There are two obvious
@@ -246,6 +237,15 @@ sub fork_and_connect {
 			}
 
 		}
+
+		#
+		# Going chroot
+		# 	everything else we need should
+		# 	be in the chroot, or accessible
+		# 	via pipes
+		#
+		chroot( $self->groupbase_path );
+		chdir("/");
 
 		my $sock = IO::Socket::INET->new(
 						PeerAddr => $ip,

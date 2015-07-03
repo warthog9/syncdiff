@@ -42,7 +42,6 @@ use IO::Socket;
 use IO::Socket::INET;
 use IO::Socket::Forwarder qw(forward_sockets);
 use Net::Domain qw(domainname);
-use HTTP::Response;
 use JSON::XS qw(encode_json);
 
 #
@@ -81,6 +80,8 @@ has 'server' => (
 has 'middleware' => (
     is       => 'rw',
     isa      => 'HashRef',
+    init_arg => undef,
+    lazy     => 1,
     default  => sub {
         {
             port  => '7069',
@@ -91,13 +92,12 @@ has 'middleware' => (
 );
 
 has 'response' => (
-    is      => 'ro',
-    isa     => 'HTTP::Response',
-    default => sub {
-        my ($code, $msg) = (200,'Success response!');
-        return HTTP::Response->new($code,$msg);
-    }
-
+    is       => 'ro',
+    isa      => 'HashRef',
+    init_arg => undef,
+    lazy     => 1,
+    writer   => '_response',
+    default  => sub { {} },
 );
 
 #
@@ -111,6 +111,7 @@ use constant {
 
 sub run {
     my( $self ) = @_;
+    my $response = {};
     if ( !$self->dbref->is_exists_connection($self->client) ) {
         if ( my $port = $self->_get_random_port() ) {
             $self->middleware->{port} = $port;
@@ -118,14 +119,22 @@ sub run {
                 host => $self->middleware->{host},
                 port => $port,
             });
-            $self->response->content($content);
+            $response = {
+                code         => 200,
+                content_type => 'application/json',
+                content      => $content,
+            };
+
             $self->fork();
         }
     }
     else {
-        $self->response->code(500);
-        $self->response->message("Client's already connect");
+        $response = {
+            code         => 500,
+            content_type => 'application/json',
+        };
     }
+    $self->_response($response);
 
     return $self->response;
 } # end run()
@@ -137,6 +146,7 @@ sub run {
 override 'run_child' => sub {
     my( $self ) = @_;
 
+    # Single client process - single forward connection
     $self->_forward();
 }; # end run_child()
 
@@ -179,30 +189,46 @@ sub _forward {
         return undef;
     }
 
+    $self->middleware->{socket} = $listener;
     $self->client->{port} = $self->middleware->{port};
     $self->dbref->new_connection($self->client);
 
-    while ( 1 ) {
-        my $client = $listener->accept();
-        my $server = eval {
-            IO::Socket::INET->new(
-                PeerAddr => $self->server->{host},
-                PeerPort => $self->server->{port},
-                Proto => $self->server->{proto},
-                );
-        };
-        if( !$server || $@ ){
-            print STDERR "Could not connect to syncdiff server: $@\n";
-            return undef;
-        }
-
-        $server->autoflush(1);
-
-        forward_sockets($client, $server);
+    my $client = $listener->accept();
+    my $server = eval {
+        IO::Socket::INET->new(
+            PeerAddr => $self->server->{host},
+            PeerPort => $self->server->{port},
+            Proto => $self->server->{proto},
+            );
+    };
+    if( !$server || $@ ){
+        print STDERR "Could not connect to syncdiff server: $@\n";
+        return undef;
     }
+
+    $self->server->{socket} = $server;
+    $server->autoflush(1);
+    forward_sockets($client, $server);
+
+    $self->_clean_up();
 
     return 1;
 } # end _forward
+
+sub _clean_up {
+    my ( $self ) = @_;
+
+    if ( defined $self->middleware->{socket} ){
+        close($self->middleware->{socket});
+    }
+    if ( defined $self->server->{socket} ){
+        close($self->server->{socket});
+    }
+
+    $self->dbref->clean_connection($self->client);
+
+    return 1;
+} # end _clean_up
 
 __PACKAGE__->meta->make_immutable;
 
