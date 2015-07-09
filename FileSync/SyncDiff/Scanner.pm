@@ -267,7 +267,7 @@ sub find_wanted {
 	#
 
 	# prep the object since it's obviously changed
-	$found_file_obj->checksum();
+	$found_file_obj->checksum_file();
 	$found_file_obj->last_transaction( $self->current_transaction_id() );
 
 	# update the file in the database
