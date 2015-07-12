@@ -397,20 +397,43 @@ sub new_connection {
 	my ($self,$info) = @_;
 	my $dbh = $self->dbh;
 
-	my $add_connection = $dbh->prepare("INSERT INTO connections (host, port, auth_key, syncbase, timeadded) VALUES( ?, ?, ?, ?, strftime('%s','now') )");
-	$add_connection->execute( $info->{host}, $info->{port}, $info->{auth_key}, $info->{syncbase} ) || die $DBI::errstr;
+	my $res = eval {
+		my $add_connection = $dbh->prepare("INSERT INTO connections (host, port, auth_key, syncbase, timeadded) VALUES( ?, ?, ?, ?, strftime('%s','now') )");
+		$add_connection->execute( $info->{host}, $info->{port}, $info->{auth_key}, $info->{syncbase} ) || die $DBI::errstr;
+	};
+	if ($@) {
+		print STDERR "Error on add new connection: $@";
+	}
 
-	return 1;
+	return $res;
 }
 
-sub clean_connection {
+sub clean_connections {
 	my ($self,$info) = @_;
 	my $dbh = $self->dbh;
 
-	my $del_connection = $dbh->prepare("DELETE FROM connections WHERE host = ? AND port = ? AND auth_key = ? AND syncbase = ?");
-	$del_connection->execute( $info->{host}, $info->{port}, $info->{auth_key}, $info->{syncbase} ) || die $DBI::errstr;
+	my $sql    = qq{ DELETE FROM connections };
+	my @params = ();
+	if ( defined $info ) {
+		push @params, { $info->{host} => 'host = ?' }			if ( exists $info->{host} );
+		push @params, { $info->{port} => 'port = ?' }			if ( exists $info->{port} );
+		push @params, { $info->{auth_key} => 'auth_key = ?' }	if ( exists $info->{auth_key} );
+		push @params, { $info->{syncbase} => 'syncbase = ?' }	if ( exists $info->{syncbase} );
+		if ( scalar @params > 0 ){
+			$sql .= qq{ WHERE };
+			$sql .= join( ' AND ', map { values %{$_} }@params );
+		}
+	}
 
-	return 1;
+	my $res = eval {
+		my $del_connection = $dbh->prepare($sql);
+		$del_connection->execute( map { keys %{$_} }@params ) || die $DBI::errstr;
+	};
+	if ($@) {
+		print STDERR "Error on clean up connections: $@";
+	}
+
+	return $res;
 }
 
 sub is_exists_connection {

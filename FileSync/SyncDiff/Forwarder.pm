@@ -225,7 +225,7 @@ sub _clean_up {
         close($self->server->{socket});
     }
 
-    $self->dbref->clean_connection($self->client);
+    $self->dbref->clean_connections($self->client);
 
     return 1;
 } # end _clean_up

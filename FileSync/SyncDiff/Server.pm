@@ -114,6 +114,7 @@ has 'remote_hostname' => (
 sub run {
 	my( $self ) = @_;
 
+	$self->_clean_up();
 	$self->fork();
 } # end run()
 
@@ -231,6 +232,14 @@ sub _check_authentication {
 
 	return 0;
 } # end _check_authentication()
+
+sub _clean_up {
+	my ( $self ) = @_;
+
+	$self->dbref->clean_connections();
+
+	return 1;
+}
 
 #no moose;
 __PACKAGE__->meta->make_immutable;
