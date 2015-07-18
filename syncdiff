@@ -29,6 +29,8 @@
 ###########################################################################
 
 # Standard includes:
+use strict;
+use warnings;
 use Getopt::Long;
 Getopt::Long::Configure(
 			qw(
@@ -47,6 +49,7 @@ use FileSync::SyncDiff::DB;
 use FileSync::SyncDiff::File;
 use FileSync::SyncDiff::Server;
 use FileSync::SyncDiff::Client;
+use FileSync::SyncDiff::Notify;
 
 # Debugging includes
 use Data::Dumper;
@@ -122,29 +125,37 @@ $dbconnection->file( "psync.sqlite" );
 
 $dbconnection->connect_and_fork();
 
+my $notify = FileSync::SyncDiff::Notify->new( config => $config, dbref => $dbconnection );
+$notify->run();
+
 if( $run_only_scan ){
 	FileSync::SyncDiff::Scanner->full_scan( $config, $dbconnection );
 	exit(0);
 } # end if( $run_only_scan )
 
 if( $run_as_server ){
-	my $server = FileSync::SyncDiff::Server->new( config => $config->config, dbref => $dbconnection );
+	my $server = FileSync::SyncDiff::Server->new( config => $config, dbref => $dbconnection );
 	$server->run();
+
 	exit(0);
 }
 
+$notify->stop;
+
 #print Dumper $config->config;
 
-foreach $group_name ( keys %{ $config->config->{groups} } ){
+foreach my $group_name ( keys %{ $config->config->{groups} } ){
 	print "Main client loop - group: ". $group_name ."\n";
 
-	foreach $base ( @{ $config->config->{groups}->{$group_name}->{patterns} } ){
+	foreach my $base ( @{ $config->config->{groups}->{$group_name}->{patterns} } ){
 
 		my $client = FileSync::SyncDiff::Client->new( config_options => $config->get_group_config( $group_name ), group => $group_name, groupbase => $base, groupbase_path => $config->get_truepath( $base ), dbref => $dbconnection );
 
 		$client->fork_and_connect();
 	} # end base foreach
 } # end group_name foreach
+
+$notify->start;
 
 #my $config = FileSync::SyncDiff::Config->new();
 #

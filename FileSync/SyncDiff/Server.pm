@@ -42,6 +42,9 @@ extends 'FileSync::SyncDiff::Forkable', 'FileSync::SyncDiff::SenderReceiver';
 use FileSync::SyncDiff::File;
 use FileSync::SyncDiff::Util;
 use FileSync::SyncDiff::Protocol::v1;
+use FileSync::SyncDiff::Notify;
+use FileSync::SyncDiff::Config;
+use FileSync::SyncDiff::Client;
 
 #
 # Other Includes
@@ -87,7 +90,7 @@ has 'dbref' => (
 		);
 has 'config' => (
 		is	=> 'rw',
-		isa	=> 'HashRef',
+		isa	=> 'FileSync::SyncDiff::Config',
 		required => 1,
 		);
 has 'group' => (
@@ -202,6 +205,38 @@ sub _process_request {
 		return $self->proto->getVersion();
 	}
 
+	if(
+		exists( $response->{operation} )
+		&&
+		$response->{operation} eq "request_notify"
+		&&
+		exists( $response->{group} )
+		&&
+		exists( $response->{hostname} )
+	){
+		my $inotify = FileSync::SyncDiff::Notify->new( config => $self->config, dbref => $self->dbref );
+		$inotify->run();
+		$inotify->stop();
+
+		my $group_name = $response->{group};
+		foreach my $base ( @{ $self->config->config->{groups}->{$group_name}->{patterns} } ){
+			my $client = FileSync::SyncDiff::Client->new(
+					config_options => $self->config->get_group_config( $group_name ),
+					group => $group_name,
+					groupbase => $base,
+					groupbase_path => $self->config->get_truepath( $base ),
+					dbref => $self->dbref
+					);
+
+			$client->fork_and_connect();
+
+		} # end base foreach
+
+		$inotify->start();
+
+		return 0;
+	}
+
 	my $processed_response = $self->proto->server_process_request( $response );
 
 	return $processed_response;
@@ -209,7 +244,7 @@ sub _process_request {
 
 sub _check_authentication {
 	my ( $self, $remote_hostname, $group, $key ) = @_;
-	my $config = $self->config;
+	my $config = $self->config->config;
 
 	my $group_key = $config->{groups}->{ $group }->{key};	
 #	print "--------------------------\n";

@@ -107,7 +107,7 @@ sub recv_loop {
 			$self->json( new JSON::XS );
 			$self->process_request();
 		}
-		
+
 		my $kid = undef;
 		do {
 			$kid = waitpid($child,0);

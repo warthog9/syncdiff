@@ -256,7 +256,15 @@ sub fork_and_connect {
 		print "Protocol should be setup\n";
 		my $protocol_obj = $self->protocol_object();
 
-		$protocol_obj->client_run(); 
+		if( !$protocol_obj->_is_lock ){
+			# locking client
+    		$protocol_obj->_lock();
+
+			$protocol_obj->client_run();
+
+			# unlocking client
+    		$protocol_obj->_unlock();
+		}
 
 		close( $sock );
 	} # end foreach $host
