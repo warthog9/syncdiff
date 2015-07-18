@@ -31,7 +31,7 @@
 package FileSync::SyncDiff::Protocol::v1;
 $FileSync::SyncDiff::Protocol::v1::VERSION = '0.01';
 use Moose;
-
+use Cwd;
 extends qw(FileSync::SyncDiff::SenderReceiver);
 
 # SyncDiff parts I need
@@ -50,6 +50,7 @@ use PerlIO::scalar;
 use File::Temp qw/ tempfile tempdir /;
 use File::Copy;
 use Digest::SHA qw(sha256 sha256_hex sha256_base64);
+use File::Basename;
 
 #
 # Debugging
@@ -159,6 +160,8 @@ sub client_run {
 	} else {
 		print "No updates found\n";
 	}
+
+	$self->clean_soft_deletes();
 } # end client_run()
 
 sub get_updates_from_remote {
@@ -203,6 +206,15 @@ sub get_updates_from_remote {
 			next;
 		}
 
+		if ($temp_file->deleted && -e $temp_file->filepath) {
+			$temp_file->{syncbase} = $self->groupbase;
+			$self->delete_file($temp_file);
+			next;
+		}
+		elsif ($temp_file->deleted) {
+			next;
+		}
+
 		if( ( $pid = fork() ) == 0 ){
 			# child process
 			print "V1: About to chroot to - |". $self->groupbase ."|\n";
@@ -237,8 +249,23 @@ sub get_updates_from_remote {
 			#if( -e $temp_file->filepath ){
 				#file exists, we should compare things before we get too far here.... *BUT* I don't want to deal with that code quite yet
 			#}
-			if( $temp_file->filetype eq "file" ){
-				$self->sync_file( $temp_file->path, $temp_file->filename, $temp_file->filepath, $temp_file->checksum );
+
+			# Check if the file is already present somewhere else
+			my @file_already_present_data = $self->dbref->is_file_already_present($temp_file->checksum);
+			if ($file_already_present_data[0][0]) {		# check if the file with same checksum exists using boolean value at 0th index
+				print "File already present on client side. Copying existing file instead of transferring from remote server\n";
+				my $old_file_path = $file_already_present_data[0][2];	# take the first file from array of returned files with same checksum
+				$self->sync_local_file($temp_file, $old_file_path, 0);	# last argument 0 denotes copying
+			}
+
+			# Check if the file is soft deleted
+			elsif ($self->dbref->is_file_soft_deleted($temp_file->checksum, $self->group, $self->groupbase)) {
+				print "File is soft-deleted on client side. Copying the soft-deleted file instead of remote transfer\n";
+				$self->sync_local_file($temp_file, "./.softDeleted/" . $temp_file->checksum, 1);	# last argument 1 denotes moving
+			}
+
+			elsif( $temp_file->filetype eq "file" ){
+				$self->sync_file( $temp_file->path, $temp_file->filename, $temp_file->filepath, $temp_file->checksum, $temp_file->last_transaction);
 			}
 
 			exit(0);
@@ -288,6 +315,7 @@ sub get_updates_from_remote {
 			}
 			#exit();
 		}
+
 		print "--------------------------------------------------------------\n";
 		print "***                  NEXT FILE                             ***\n";
 		printf("***                  %3d/%3d                               ***\n", $x, $num_keys);
@@ -297,12 +325,72 @@ sub get_updates_from_remote {
 
 } # end get_updates_from_remote()
 
+sub clean_soft_deletes {
+	my ($self) = @_;
+	my $dbref = $self->dbref;
+
+	my @files_to_clean = $dbref->get_soft_deleted_files_to_clean($self->group);
+	my $index = 0;
+	while (defined $files_to_clean[0][$index]) {
+		my $checksum = $files_to_clean[0][$index];
+		print "Checksum is $files_to_clean[0][$index]\n";
+		unlink "./.softDeleted/".$checksum or die "Could not unlink file during cleaning of soft deleted files";
+		$dbref->remove_soft_delete_entry($checksum, $self->group);
+		$index++;
+	}
+
+} # end clean_soft_deletes
+
+sub delete_file {
+	my ($self, $temp_file) = @_;
+	my $dbref = $self->dbref;
+
+	opendir(DIR, getcwd()) or die $!;
+
+	while (my $file = readdir(DIR)) {
+		# Use a regular expression to ignore files beginning with a period
+		next if ($file =~ m/^\./);
+		print "$file\n";
+	}
+
+	move($temp_file->filepath, "./.softDeleted/".$temp_file->checksum) or die "Could not move file to softDelete folder while deleting it. $!";
+	$dbref->delete_file($temp_file);
+	$dbref->add_soft_delete_entry($temp_file->checksum, $self->group);
+} # end delete_file
+
+sub sync_local_file {
+	my ($self, $temp_file, $old_path, $moveFlag) = @_;
+
+	my $path = $temp_file->path;
+	my $filename = $temp_file->filename;
+	my $filepath = $temp_file->filepath();
+	my $mode = $temp_file->mode;
+	my $dbref = $self->dbref;
+
+	if ( ! -d $path ){
+		print "Making directory: ". $path . "\n";
+		make_path($path, {verbose => 1, } );
+	}
+	
+	copy($old_path, $filepath) or die "Local sync failed $!";
+	chmod($mode & 07777, $filepath) or die "Failed to change permissions of copied file";
+	$dbref->add_or_update_file($temp_file);
+
+	if ($moveFlag) {
+		unlink $old_path or die "Could not unlink $old_path during local sync: $!";
+		$dbref->remove_soft_delete_entry($temp_file->checksum, $self->group);
+	}
+	
+} # end sync_local_file
+
 sub sync_file {
-	my( $self, $path, $filename, $filepath, $checksum) = @_;
+	my( $self, $path, $filename, $filepath, $checksum, $last_transaction ) = @_;
 
 	my $sig_buffer = undef;
 	my $basis = undef;
 	my $sig = undef;
+	my $dbref = $self->dbref;
+	my $new_file_flag = 0;
 
 	print "Going to sync the file $filepath\n";
 
@@ -331,6 +419,7 @@ sub sync_file {
 	if( ! -e $filepath ){
 		open HANDLE, ">>$filepath" or die "touch $filepath: $!\n"; 
 		close HANDLE;
+		$new_file_flag = 1;
 	}
 
 	open $basis, "<", $filepath or die "$filepath - $!";
@@ -477,6 +566,16 @@ sub sync_file {
 	}
 
 	move( $new_path, $filepath );
+
+	($new_file_obj->{filename}, $new_file_obj->{path}) = fileparse($filepath);
+	$new_file_obj->{last_transaction} = $last_transaction;
+
+	if ($new_file_flag) {
+		$dbref->add_file($new_file_obj);
+	}
+	else {
+		$dbref->update_file($new_file_obj);
+	}
 
 } # end sync_file
 

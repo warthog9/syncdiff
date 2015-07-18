@@ -226,7 +226,6 @@ sub process_request {
 ##	print "DB:process_request - line:\n";
 ##	print Dumper $line;
 ##	print "^^^^^^^^^^^^^^^^^^^^^^^\n";
-	
 	my $request = decode_json( $line );
 
 	if( ! defined $request->{operation} ){
@@ -288,6 +287,34 @@ sub process_request {
 		return $self->_clean_stop();
 	}
 
+	if( $request->{operation} eq "delete_file" ){
+		return $self->_delete_file( $request->{file} );
+	}
+
+	if( $request->{operation} eq "is_file_already_present"){
+		return $self->_is_file_already_present( $request->{file_checksum} );
+	}
+
+	if ( $request->{operation} eq "is_file_soft_deleted"){
+		return $self->_is_file_soft_deleted( $request->{file_checksum}, $request->{group}, $request->{groupbase} );
+	}
+
+	if ( $request->{operation} eq "add_or_update_file"){
+		return $self->_add_or_update_file( $request->{file} );
+	}
+
+	if ( $request->{operation} eq "remove_soft_delete_entry"){
+		return $self->_remove_soft_delete_entry( $request->{file_checksum}, $request->{group} );
+	}
+
+	if ( $request->{operation} eq "add_soft_delete_entry"){
+		return $self->_add_soft_delete_entry( $request->{file_checksum}, $request->{group} );
+	}
+
+	if ( $request->{operation} eq "get_soft_deleted_files_to_clean"){
+		return $self->_get_soft_deleted_files_to_clean( $request->{group} );
+	}
+
 } # end process_request()
 
 sub clean_stop {
@@ -329,6 +356,8 @@ sub create_database {
 
 	$dbh->do("CREATE TABLE servers_seen (id INTEGER PRIMARY KEY AUTOINCREMENT, hostname TEXT unique, transactionid TEXT, 'group' TEXT, timeadded INTEGER)");
 
+	$dbh->do("CREATE TABLE if not exists soft_deleted_files (id INTEGER PRIMARY KEY AUTOINCREMENT, checksum TEXT, soft_deleted_since INTEGER, syncgroup TEXT)");
+
 	my $transaction_id = sha256_hex( hostname() ."-". $$ ."-". time() );
 
 	print Dumper $self->config->config;
@@ -362,13 +391,18 @@ sub send_request {
 	}
 
 ##	print Dumper $line;
-
-	chomp( $line );
+	if (defined $line) {
+		chomp( $line );
+	}
 
 ##	print "Got response\n";
 
 ##	print "*** DB->send_request() - return line:\n";
 ##	print Dumper $line;
+
+	if (!(defined $line)) {
+		return 0;
+	}
 
 	if( $line eq "0" ){
 		return 0;
@@ -746,6 +780,51 @@ sub _mark_deleted {
 	return 0;
 } # end _mark_deleted()
 
+sub delete_file {
+	my( $self, $file ) = @_;
+
+	my %file_hash = $file->to_hash();
+
+	my %request = (
+		operation	=> 'delete_file',
+		file		=> \%file_hash,
+		);
+
+	my $response = $self->send_request( %request );
+} # end delete_file()
+
+sub _delete_file {
+	my( $self, $file ) = @_;
+	my $dbh = $self->dbh;
+
+	my $file_obj = FileSync::SyncDiff::File->new(dbref => $self );
+	$file_obj->from_hash( $file );
+
+##	print "Marking deleted:\n";
+##	print "\tlast transaction: ". $file_obj->last_transaction ."\n";
+##	print "\tFilepath: ". $file_obj->filepath ."\n";
+##	print "\tsyncgroup: ". $file_obj->syncgroup ."\n";
+##	print "\tsyncbase: ". $file_obj->syncbase ."\n";
+
+	my $sql = "DELETE FROM files WHERE filepath=? and syncgroup=? and syncbase=?";
+
+##	print "\tSQL: ". $sql ."\n";
+
+	my $delete_file_sth =  $dbh->prepare($sql);
+
+	$delete_file_sth->execute(
+		$file_obj->filepath,
+		$file_obj->syncgroup,
+		$file_obj->syncbase
+		);
+
+	if ( $delete_file_sth->err ){
+		die "ERROR! return code: ". $delete_file_sth->err . " error msg: " . $delete_file_sth->errstr . "\n";
+	}
+
+	return 0;
+} # end _delete_file()
+
 sub update_file {
 	my( $self, $file ) = @_;
 
@@ -1065,6 +1144,184 @@ sub _get_files_changed_since {
 	#return \@return_array;
 	return \%return_hash;
 } # end _get_files_changed_since()
+
+#sub is_file_already_present {
+#	my( $self, $file_checksum ) = @_;
+#	
+#	my %request = (
+#			operation => 'is_file_already_present',
+#			file_checksum => $file_checksum,
+#	);
+#	my $response = Is_file_already_present;
+#	my $response = $self->send_request( %request );
+#
+#	return $response;
+#} # end is_file_already_present
+
+sub is_file_already_present {
+	my ( $self, $file_checksum) = @_;
+	my $dbh = $self->dbh;
+
+	my $sql = "SELECT * FROM files WHERE checksum=? ;";
+
+	my $sth = $dbh->prepare($sql);
+	$sth->execute($file_checksum);
+	
+	my @row = $sth->fetchrow_array();
+	my @return_array = ($sth->rows, @row);
+	
+	return \@return_array;
+} # end _is_file_already_present
+
+sub is_file_soft_deleted {
+	my( $self, $file_checksum, $group, $groupbase ) = @_;
+
+	my %request = (
+			operation => 'is_file_soft_deleted',
+			group => $group,
+			groupbase => $groupbase,
+	);
+
+	my $response = $self->send_request( %request );
+
+	return $response;
+} # end is_file_soft_deleted
+
+sub _is_file_soft_deleted {
+	my ($self, $file_checksum, $group, $groupbase) = @_;
+	my $row_count = 0;
+
+	if ( -e ($groupbase . "/.softDeleted/" . $file_checksum)) {			# keeping a default path temporarily
+#		my $new_file_obj = FileSync::SyncDiff::File->new(dbref => FileSync::SyncDiff::DB->new(config => $self->config));
+#		$new_file_obj->get_file( $groupbase . "/.softDeleted/" . $file_checksum, "", "");
+#		$new_file_obj->checksum_file();
+#		my $file_new_checksum = $new_file_obj->checksum;
+
+#		if ($file_new_checksum == $file_checksum) {
+			my $dbh = $self->dbh;
+			my $sql = "SELECT * FROM soft_deleted_files WHERE checksum=? AND syncgroup=? ;";
+			my $sth = $dbh->prepare($sql);
+			$sth->execute($file_checksum, $group);
+			my @row = $sth->fetchrow_array();
+			$row_count = $sth->rows;
+#		}
+	}
+	return $row_count;
+} # end _is_file_soft_deleted
+
+sub add_or_update_file {
+	my ($self, $file) = @_;
+
+	my %file_hash = $file->to_hash();
+
+	my %request = (
+			operation => 'add_or_update_file',
+			file => \%file_hash,
+	);
+
+	my $response = $self->send_request( %request );
+} # end add_or_update_file
+
+sub _add_or_update_file {
+	my ($self, $file) = @_;
+
+	my $file_obj = FileSync::SyncDiff::File->new(dbref => $self );
+	$file_obj->from_hash( $file );
+
+	my $dbh = $self->dbh;
+	my $sql = "SELECT * FROM files WHERE filepath=? and syncgroup=? and syncbase=? ;";
+	my $sth = $dbh->prepare($sql);
+	$sth->execute(
+		$file_obj->filepath,
+		$file_obj->syncgroup,
+		$file_obj->syncbase
+		);
+
+	my @row = $sth->fetchrow_array();
+	my $row_count = $sth->rows;
+
+	if ($row_count == 0) {
+		$self->_add_file($file_obj);
+	}
+	else {
+		$self->_update_file($file_obj);
+	}
+} # end _add_or_update_file
+
+sub remove_soft_delete_entry {
+	my ($self, $file_checksum, $group) = @_;
+
+	my %request = (
+			operation => 'remove_soft_delete_entry',
+			file_checksum => $file_checksum,
+			group => $group,
+	);
+
+	my $response = $self->send_request( %request );
+} # end remove_soft_delete_entry
+
+sub _remove_soft_delete_entry {
+	my ($self, $file_checksum, $group) = @_;
+
+	my $dbh = $self->dbh;
+	my $sql = "DELETE from soft_deleted_files WHERE checksum=? AND syncgroup=? ;";
+	my $sth = $dbh->prepare($sql);
+	$sth->execute($file_checksum, $group);
+} # _remove_soft_delete_entry
+
+sub add_soft_delete_entry {
+	my ($self, $file_checksum, $group) = @_;
+
+	my %request = (
+			operation => 'add_soft_delete_entry',
+			file_checksum => $file_checksum,
+			group => $group,
+	);
+
+	my $response = $self->send_request( %request );
+} # add_soft_delete_entry
+
+sub _add_soft_delete_entry {
+	my ($self, $file_checksum, $group) = @_;
+
+	$self->_remove_soft_delete_entry($file_checksum, $group);	# remove the entry if already present
+
+	my $dbh = $self->dbh;
+	my $sql = "INSERT into soft_deleted_files (checksum, soft_deleted_since, syncgroup) values (?, strftime('%s','now'), ?) ;";
+	my $sth = $dbh->prepare($sql);
+	$sth->execute($file_checksum, $group);
+} # end _add_soft_delete_entry
+
+sub get_soft_deleted_files_to_clean {
+	my ($self, $group ) = @_;
+
+	my %request = (
+		operation => 'get_soft_deleted_files_to_clean',
+		group => $group,
+	);
+
+	my $response = $self->send_request( %request );
+
+	return $response;
+} # end get_soft_deleted_files_to_clean
+
+sub _get_soft_deleted_files_to_clean {
+	my ($self, $group) = @_;
+	my $dbh = $self->dbh;
+	my $TIME_RANGE = 30*24*60*60;
+
+	my $sql = "SELECT checksum FROM soft_deleted_files WHERE soft_deleted_since<=? AND syncgroup=? ;";
+
+	my $sth = $dbh->prepare($sql);
+	$sth->execute(time() - $TIME_RANGE, $group);
+
+	my @return_list = ();
+	my $item;
+	while (($item) = $sth->fetchrow_array()) {
+		push(@return_list, $item);
+	}
+	return \@return_list;
+} # end _get_soft_deleted_files_to_clean
 
 #no moose;
 __PACKAGE__->meta->make_immutable;
