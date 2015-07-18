@@ -50,6 +50,7 @@ use PerlIO::scalar;
 use File::Temp qw/ tempfile tempdir /;
 use File::Copy;
 use Digest::SHA qw(sha256 sha256_hex sha256_base64);
+use File::Basename;
 
 #
 # Debugging
@@ -203,6 +204,13 @@ sub get_updates_from_remote {
 			next;
 		}
 
+		if ($temp_file->deleted) {
+			$temp_file->{syncbase} = $self->groupbase;
+			$self->dbref->delete_file($temp_file);
+			unlink $temp_file->filepath;
+			next;
+		}
+
 		if( ( $pid = fork() ) == 0 ){
 			# child process
 			print "V1: About to chroot to - |". $self->groupbase ."|\n";
@@ -238,7 +246,7 @@ sub get_updates_from_remote {
 				#file exists, we should compare things before we get too far here.... *BUT* I don't want to deal with that code quite yet
 			#}
 			if( $temp_file->filetype eq "file" ){
-				$self->sync_file( $temp_file->path, $temp_file->filename, $temp_file->filepath, $temp_file->checksum );
+				$self->sync_file( $temp_file->path, $temp_file->filename, $temp_file->filepath, $temp_file->checksum, $temp_file->last_transaction);
 			}
 
 			exit(0);
@@ -298,11 +306,13 @@ sub get_updates_from_remote {
 } # end get_updates_from_remote()
 
 sub sync_file {
-	my( $self, $path, $filename, $filepath, $checksum) = @_;
+	my( $self, $path, $filename, $filepath, $checksum, $last_transaction ) = @_;
 
 	my $sig_buffer = undef;
 	my $basis = undef;
 	my $sig = undef;
+	my $dbref = $self->dbref;
+	my $new_file_flag = 0;
 
 	print "Going to sync the file $filepath\n";
 
@@ -331,6 +341,7 @@ sub sync_file {
 	if( ! -e $filepath ){
 		open HANDLE, ">>$filepath" or die "touch $filepath: $!\n"; 
 		close HANDLE;
+		$new_file_flag = 1;
 	}
 
 	open $basis, "<", $filepath or die "$filepath - $!";
@@ -477,6 +488,16 @@ sub sync_file {
 	}
 
 	move( $new_path, $filepath );
+
+	($new_file_obj->{filename}, $new_file_obj->{path}) = fileparse($filepath);
+	$new_file_obj->{last_transaction} = $last_transaction;
+
+	if ($new_file_flag) {
+		$dbref->add_file($new_file_obj);
+	}
+	else {
+		$dbref->update_file($new_file_obj);
+	}
 
 } # end sync_file
 

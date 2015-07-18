@@ -19,10 +19,14 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   # Set up two machines
   config.vm.define "server0" do |server0|
     server0.vm.box = "CentOS-6.4-x86_64-v20130731"
+    server0.vm.network "private_network", ip: "192.168.0.2"
+	server0.vm.provision "shell", inline: "echo -e '192.168.0.2\tserver0\n192.168.0.3\tserver1' >> /etc/hosts", privileged: "true"
   end
 
   config.vm.define "server1" do |server1|
     server1.vm.box = "CentOS-6.4-x86_64-v20130731"
+    server1.vm.network "private_network", ip: "192.168.0.3"
+	server1.vm.provision "shell", inline: "echo -e '192.168.0.2\tserver0\n192.168.0.3\tserver1' >> /etc/hosts", privileged: "true"
   end
 
   # Create a forwarded port mapping which allows access to a specific port

@@ -288,6 +288,10 @@ sub process_request {
 		return $self->_clean_stop();
 	}
 
+	if( $request->{operation} eq "delete_file" ){
+		return $self->_delete_file( $request->{file} );
+	}
+
 } # end process_request()
 
 sub clean_stop {
@@ -362,13 +366,18 @@ sub send_request {
 	}
 
 ##	print Dumper $line;
-
-	chomp( $line );
+	if (defined $line) {
+		chomp( $line );
+	}
 
 ##	print "Got response\n";
 
 ##	print "*** DB->send_request() - return line:\n";
 ##	print Dumper $line;
+
+	if (!(defined $line)) {
+		return 0;
+	}
 
 	if( $line eq "0" ){
 		return 0;
@@ -745,6 +754,51 @@ sub _mark_deleted {
 
 	return 0;
 } # end _mark_deleted()
+
+sub delete_file {
+	my( $self, $file ) = @_;
+
+	my %file_hash = $file->to_hash();
+
+	my %request = (
+		operation	=> 'delete_file',
+		file		=> \%file_hash,
+		);
+
+	my $response = $self->send_request( %request );
+} # end delete_file()
+
+sub _delete_file {
+	my( $self, $file ) = @_;
+	my $dbh = $self->dbh;
+
+	my $file_obj = FileSync::SyncDiff::File->new(dbref => $self );
+	$file_obj->from_hash( $file );
+
+##	print "Marking deleted:\n";
+##	print "\tlast transaction: ". $file_obj->last_transaction ."\n";
+##	print "\tFilepath: ". $file_obj->filepath ."\n";
+##	print "\tsyncgroup: ". $file_obj->syncgroup ."\n";
+##	print "\tsyncbase: ". $file_obj->syncbase ."\n";
+
+	my $sql = "DELETE FROM files WHERE filepath=? and syncgroup=? and syncbase=?";
+
+##	print "\tSQL: ". $sql ."\n";
+
+	my $delete_file_sth =  $dbh->prepare($sql);
+
+	$delete_file_sth->execute(
+		$file_obj->filepath,
+		$file_obj->syncgroup,
+		$file_obj->syncbase
+		);
+
+	if ( $delete_file_sth->err ){
+		die "ERROR! return code: ". $delete_file_sth->err . " error msg: " . $delete_file_sth->errstr . "\n";
+	}
+
+	return 0;
+} # end _delete_file()
 
 sub update_file {
 	my( $self, $file ) = @_;
