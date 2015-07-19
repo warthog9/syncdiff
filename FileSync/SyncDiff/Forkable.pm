@@ -44,6 +44,8 @@ use IO::Socket;
 # Debugging
 #
 
+our $DEBUG = 0;
+
 use Data::Dumper;
 
 # End includes

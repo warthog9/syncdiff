@@ -57,6 +57,8 @@ use Try::Tiny;
 # Debugging
 #
 
+our $DEBUG = 0;
+
 use Data::Dumper;
 
 # End Includes
@@ -89,6 +91,10 @@ has 'config' => (
 		is	=> 'rw',
 		isa	=> 'HashRef',
 		required => 1,
+		trigger => sub {
+			my ($self) = @_;
+			$DEBUG = $self->config->{debug};
+		}
 		);
 has 'group' => (
 		is	=> 'rw',
@@ -146,8 +152,8 @@ sub _process_request {
 		return undef;
 	}
 
-#	print "Server - _process_request:\n";
-#	print Dumper $response;
+#	print "Server - _process_request:\n" if $DEBUG;
+#	print Dumper $response if $DEBUG;
 
 	if(
 		exists( $response->{operation} )
@@ -188,7 +194,7 @@ sub _process_request {
 		$response->{request_version} < 2
 	){
 		print "Primary protocol version 1 found\n";
-		print Dumper $self->groupbase;
+		print Dumper $self->groupbase if $DEBUG;
 		$self->proto(
 			FileSync::SyncDiff::Protocol::v1->new(
 				socket => $self->socket,
@@ -224,7 +230,7 @@ sub _check_authentication {
 		$self->group( $group );
 		$self->remote_hostname( $remote_hostname );
 
-		print Dumper $config->{groups}->{ $group };
+		print Dumper $config->{groups}->{ $group } if $DEBUG;
 		$self->groupbase( $config->{groups}->{ $group }->{patterns}[0] );
 		return 1;
 	}

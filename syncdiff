@@ -49,6 +49,8 @@ use FileSync::SyncDiff::Server;
 use FileSync::SyncDiff::Client;
 
 # Debugging includes
+our $DEBUG = 0;
+
 use Data::Dumper;
 
 ## End includes
@@ -59,6 +61,10 @@ $main::VERSION = '0.01';
 sub display_help {
 	print "Right now, there is no helping anyone.\n";
 	print "If you are running this you had better be John 'Warthog9' Hawley\n";
+}
+
+sub debug_mode {
+	$DEBUG = 1;
 }
 
 #
@@ -72,12 +78,14 @@ my $run_as_server;
 my $get_version;
 my $get_help;
 my $run_only_scan;
+my $debug_mode;
 GetOptions (
 		"c|config=s"	=> \$config_file,      # string
 		"s|server"	=> \$run_as_server,
 		"scan"		=> \$run_only_scan,
 		"v|version"	=> \$get_version,
 		"h|?|help"	=> \$get_help,
+		"debug"		=> \$debug_mode,
 	   );
 
 print "Config File: ". $config_file ."\n";
@@ -94,6 +102,10 @@ if( $get_help ){
 	exit(0);
 }
 
+if ( $debug_mode ){
+	debug_mode();
+}
+
 #
 # Load up the Configuration file
 #
@@ -107,7 +119,7 @@ if( ! defined $config_file ){
 #print "---------------------------\n";
 #print Dumper $config_file;
 #print "^^^^^^^^^^^^^^^^^^^^^^^^^^^\n";
-
+$FileSync::SyncDiff::Config::DEBUG = $DEBUG;
 my $config = FileSync::SyncDiff::Config->new();
 
 $config->read_config( $config_file );
@@ -123,6 +135,7 @@ $dbconnection->file( "psync.sqlite" );
 $dbconnection->connect_and_fork();
 
 if( $run_only_scan ){
+	$FileSync::SyncDiff::Scanner::DEBUG = $config->config->{debug};
 	FileSync::SyncDiff::Scanner->full_scan( $config, $dbconnection );
 	exit(0);
 } # end if( $run_only_scan )
@@ -139,7 +152,7 @@ foreach $group_name ( keys %{ $config->config->{groups} } ){
 	print "Main client loop - group: ". $group_name ."\n";
 
 	foreach $base ( @{ $config->config->{groups}->{$group_name}->{patterns} } ){
-
+		$FileSync::SyncDiff::Client::DEBUG = $config->config->{debug};
 		my $client = FileSync::SyncDiff::Client->new( config_options => $config->get_group_config( $group_name ), group => $group_name, groupbase => $base, groupbase_path => $config->get_truepath( $base ), dbref => $dbconnection );
 
 		$client->fork_and_connect();

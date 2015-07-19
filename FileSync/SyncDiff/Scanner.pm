@@ -58,6 +58,8 @@ use POSIX ":sys_wait_h";
 # Debugging
 #
 
+our $DEBUG = 0;
+
 use Data::Dumper;
 
 # End includes

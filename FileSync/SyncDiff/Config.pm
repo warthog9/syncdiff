@@ -38,6 +38,8 @@ use Parse::Lex;
 use FileSync::SyncDiff::ParseCfg;
 use FileSync::SyncDiff::Util;
 
+our $DEBUG = 0;
+
 use Data::Dumper;
 
 has 'config' => (
@@ -79,6 +81,7 @@ sub read_config {
 			TK_INCL		include
 			TK_COMP		compare
 			TK_KEY		key
+			TK_DEBUG	debug
 			TK_AUTO		auto
 			TK_ACTION	action
 			TK_PATTERN	pattern
@@ -191,6 +194,7 @@ sub read_config {
 	my %prefixes_temp = $parser->get_prefixes();
 	$config{'prefixes'} = \%prefixes_temp;
 	( $config{'ignore_uid'}, $config{'ignore_gid'}, $config{'ignore_mod'} ) = $parser->get_ignores();
+	$config{'debug'} = $parser->get_debug() || $DEBUG;
 
 #	print "#########################################################\n";
 #	print Dumper \%config;

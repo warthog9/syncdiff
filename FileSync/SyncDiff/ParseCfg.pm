@@ -46,6 +46,8 @@ use Parse::Yapp::Driver;
 #line 1 "psync_cfg_parser.y"
  # start of the code section
 
+our $DEBUG = 0;
+
 use Data::Dumper;
 use Sys::Hostname;
 use File::FnMatch qw(:fnmatch);    # import everything
@@ -64,6 +66,8 @@ my $ignore_uid = 0;
 my $ignore_gid = 0;
 my $ignore_mod = 0;
 
+my $debug_mode = 0;
+
 sub get_groups {
 	return %groups;
 }
@@ -74,6 +78,10 @@ sub get_prefixes {
 
 sub get_ignores {
 	return ($ignore_uid, $ignore_gid, $ignore_mod);
+}
+
+sub get_debug {
+	return $debug_mode;
 }
 
 sub new_group {
@@ -319,6 +327,16 @@ sub new_ignore {
 	}
 } # end new_ignore()
 
+sub debug_mode {
+	my ($debug) = @_;
+	if ( $debug == 1 || $debug == 0 ) {
+		$debug_mode = $debug // 0;
+	}
+	else {
+		print "\tdebug option should be 0 or 1 - IGNORING\n";
+	}
+}# end debug_mode()
+
 sub on_cygwin_lowercase {
 	my( $string ) = @_;
 #	print "function: on_cygwin_lowercase()\n";
@@ -346,381 +364,386 @@ sub new {
 [
 	{#State 0
 		ACTIONS => {
-			'TK_IGNORE' => 1,
-			'TK_PREFIX' => 2,
-			'TK_NOCYGLOWER' => 3,
-			'TK_GROUP' => 7
+			'TK_IGNORE' => 3,
+			'TK_PREFIX' => 4,
+			'TK_DEBUG' => 1,
+			'TK_NOCYGLOWER' => 2,
+			'TK_GROUP' => 8
 		},
 		DEFAULT => -1,
 		GOTOS => {
+			'block' => 6,
 			'config' => 5,
-			'block' => 4,
-			'block_header' => 6
+			'block_header' => 7
 		}
 	},
 	{#State 1
 		ACTIONS => {
-			'TK_STRING' => 8
+			'TK_STRING' => 9
 		},
-		DEFAULT => -8,
+		DEFAULT => -11,
 		GOTOS => {
-			'ignore_list' => 9
+			'debug' => 10
 		}
 	},
 	{#State 2
 		ACTIONS => {
-			'TK_STRING' => 10
+			'TK_STEND' => 11
 		}
 	},
 	{#State 3
 		ACTIONS => {
-			'TK_STEND' => 11
+			'TK_STRING' => 12
+		},
+		DEFAULT => -9,
+		GOTOS => {
+			'ignore_list' => 13
 		}
 	},
 	{#State 4
 		ACTIONS => {
-			'TK_IGNORE' => 1,
-			'TK_PREFIX' => 2,
-			'TK_NOCYGLOWER' => 3,
-			'TK_GROUP' => 7
-		},
-		DEFAULT => -1,
-		GOTOS => {
-			'config' => 12,
-			'block' => 4,
-			'block_header' => 6
+			'TK_STRING' => 14
 		}
 	},
 	{#State 5
 		ACTIONS => {
-			'' => 13
+			'' => 15
 		}
 	},
 	{#State 6
 		ACTIONS => {
-			'TK_BLOCK_BEGIN' => 15
+			'TK_IGNORE' => 3,
+			'TK_PREFIX' => 4,
+			'TK_DEBUG' => 1,
+			'TK_NOCYGLOWER' => 2,
+			'TK_GROUP' => 8
 		},
+		DEFAULT => -1,
 		GOTOS => {
-			'block_body' => 14
+			'config' => 16,
+			'block' => 6,
+			'block_header' => 7
 		}
 	},
 	{#State 7
 		ACTIONS => {
-			'TK_STRING' => 16
+			'TK_BLOCK_BEGIN' => 18
 		},
-		DEFAULT => -12
+		GOTOS => {
+			'block_body' => 17
+		}
 	},
 	{#State 8
 		ACTIONS => {
-			'TK_STRING' => 8
+			'TK_STRING' => 19
 		},
-		DEFAULT => -8,
-		GOTOS => {
-			'ignore_list' => 17
-		}
+		DEFAULT => -15
 	},
 	{#State 9
 		ACTIONS => {
-			'TK_STEND' => 18
+			'TK_STRING' => 9
+		},
+		DEFAULT => -11,
+		GOTOS => {
+			'debug' => 20
 		}
 	},
 	{#State 10
-		DEFAULT => -4,
-		GOTOS => {
-			'@1-2' => 19
+		ACTIONS => {
+			'TK_STEND' => 21
 		}
 	},
 	{#State 11
-		DEFAULT => -7
+		DEFAULT => -8
 	},
 	{#State 12
-		DEFAULT => -2
+		ACTIONS => {
+			'TK_STRING' => 12
+		},
+		DEFAULT => -9,
+		GOTOS => {
+			'ignore_list' => 22
+		}
 	},
 	{#State 13
-		DEFAULT => 0
+		ACTIONS => {
+			'TK_STEND' => 23
+		}
 	},
 	{#State 14
-		DEFAULT => -3
+		DEFAULT => -4,
+		GOTOS => {
+			'@1-2' => 24
+		}
 	},
 	{#State 15
-		ACTIONS => {
-			'TK_EXCL' => 20,
-			'TK_KEY' => 21,
-			'TK_ACTION' => 23,
-			'TK_BAK_GEN' => 24,
-			'TK_INCL' => 26,
-			'TK_BAK_DIR' => 27,
-			'TK_AUTO' => 28,
-			'TK_COMP' => 31,
-			'TK_HOST' => 30
-		},
-		DEFAULT => -15,
-		GOTOS => {
-			'stmt' => 25,
-			'stmts' => 22,
-			'action' => 29
-		}
+		DEFAULT => 0
 	},
 	{#State 16
-		DEFAULT => -13
+		DEFAULT => -2
 	},
 	{#State 17
-		DEFAULT => -9
+		DEFAULT => -3
 	},
 	{#State 18
-		DEFAULT => -6
+		ACTIONS => {
+			'TK_EXCL' => 25,
+			'TK_KEY' => 26,
+			'TK_ACTION' => 28,
+			'TK_BAK_GEN' => 29,
+			'TK_INCL' => 31,
+			'TK_BAK_DIR' => 32,
+			'TK_AUTO' => 33,
+			'TK_HOST' => 36,
+			'TK_COMP' => 35
+		},
+		DEFAULT => -18,
+		GOTOS => {
+			'stmt' => 30,
+			'stmts' => 27,
+			'action' => 34
+		}
 	},
 	{#State 19
-		ACTIONS => {
-			'TK_BLOCK_BEGIN' => 32
-		}
+		DEFAULT => -16
 	},
 	{#State 20
-		DEFAULT => -33,
-		GOTOS => {
-			'excl_list' => 33
-		}
+		DEFAULT => -12
 	},
 	{#State 21
-		ACTIONS => {
-			'TK_STRING' => 34
-		}
+		DEFAULT => -7
 	},
 	{#State 22
-		ACTIONS => {
-			'TK_BLOCK_END' => 35
-		}
+		DEFAULT => -10
 	},
 	{#State 23
-		DEFAULT => -39,
-		GOTOS => {
-			'@2-1' => 36
-		}
+		DEFAULT => -6
 	},
 	{#State 24
 		ACTIONS => {
-			'TK_STRING' => 37
+			'TK_BLOCK_BEGIN' => 37
 		}
 	},
 	{#State 25
-		ACTIONS => {
-			'TK_STEND' => 38
+		DEFAULT => -36,
+		GOTOS => {
+			'excl_list' => 38
 		}
 	},
 	{#State 26
-		DEFAULT => -35,
-		GOTOS => {
-			'incl_list' => 39
+		ACTIONS => {
+			'TK_STRING' => 39
 		}
 	},
 	{#State 27
 		ACTIONS => {
-			'TK_STRING' => 40
+			'TK_BLOCK_END' => 40
 		}
 	},
 	{#State 28
-		ACTIONS => {
-			'TK_STRING' => 41
+		DEFAULT => -42,
+		GOTOS => {
+			'@2-1' => 41
 		}
 	},
 	{#State 29
 		ACTIONS => {
-			'TK_EXCL' => 20,
-			'TK_KEY' => 21,
-			'TK_ACTION' => 23,
-			'TK_BAK_GEN' => 24,
-			'TK_INCL' => 26,
-			'TK_BAK_DIR' => 27,
-			'TK_AUTO' => 28,
-			'TK_HOST' => 30,
-			'TK_COMP' => 31
-		},
-		DEFAULT => -15,
-		GOTOS => {
-			'stmt' => 25,
-			'stmts' => 42,
-			'action' => 29
+			'TK_STRING' => 42
 		}
 	},
 	{#State 30
-		DEFAULT => -26,
-		GOTOS => {
-			'host_list' => 43
+		ACTIONS => {
+			'TK_STEND' => 43
 		}
 	},
 	{#State 31
-		ACTIONS => {
-			'TK_STEND' => -37
-		},
-		DEFAULT => -35,
+		DEFAULT => -38,
 		GOTOS => {
-			'comp_list' => 45,
 			'incl_list' => 44
 		}
 	},
 	{#State 32
-		DEFAULT => -10,
-		GOTOS => {
-			'prefix_list' => 46
+		ACTIONS => {
+			'TK_STRING' => 45
 		}
 	},
 	{#State 33
 		ACTIONS => {
-			'TK_STRING' => 47
-		},
-		DEFAULT => -19
+			'TK_STRING' => 46
+		}
 	},
 	{#State 34
-		DEFAULT => -22
+		ACTIONS => {
+			'TK_EXCL' => 25,
+			'TK_KEY' => 26,
+			'TK_ACTION' => 28,
+			'TK_BAK_GEN' => 29,
+			'TK_INCL' => 31,
+			'TK_BAK_DIR' => 32,
+			'TK_AUTO' => 33,
+			'TK_HOST' => 36,
+			'TK_COMP' => 35
+		},
+		DEFAULT => -18,
+		GOTOS => {
+			'stmt' => 30,
+			'stmts' => 47,
+			'action' => 34
+		}
 	},
 	{#State 35
-		DEFAULT => -14
+		ACTIONS => {
+			'TK_STEND' => -40
+		},
+		DEFAULT => -38,
+		GOTOS => {
+			'comp_list' => 49,
+			'incl_list' => 48
+		}
 	},
 	{#State 36
-		ACTIONS => {
-			'TK_BLOCK_BEGIN' => 48
+		DEFAULT => -29,
+		GOTOS => {
+			'host_list' => 50
 		}
 	},
 	{#State 37
-		DEFAULT => -25
+		DEFAULT => -13,
+		GOTOS => {
+			'prefix_list' => 51
+		}
 	},
 	{#State 38
 		ACTIONS => {
-			'TK_EXCL' => 20,
-			'TK_KEY' => 21,
-			'TK_ACTION' => 23,
-			'TK_BAK_GEN' => 24,
-			'TK_INCL' => 26,
-			'TK_BAK_DIR' => 27,
-			'TK_AUTO' => 28,
-			'TK_HOST' => 30,
-			'TK_COMP' => 31
+			'TK_STRING' => 52
 		},
-		DEFAULT => -15,
-		GOTOS => {
-			'stmt' => 25,
-			'stmts' => 49,
-			'action' => 29
-		}
+		DEFAULT => -22
 	},
 	{#State 39
-		ACTIONS => {
-			'TK_STRING' => 50
-		},
-		DEFAULT => -20
+		DEFAULT => -25
 	},
 	{#State 40
-		DEFAULT => -24
+		DEFAULT => -17
 	},
 	{#State 41
-		DEFAULT => -23
+		ACTIONS => {
+			'TK_BLOCK_BEGIN' => 53
+		}
 	},
 	{#State 42
-		DEFAULT => -17
+		DEFAULT => -28
 	},
 	{#State 43
 		ACTIONS => {
-			'TK_STRING' => 52,
-			'TK_POPEN' => 51
+			'TK_EXCL' => 25,
+			'TK_KEY' => 26,
+			'TK_ACTION' => 28,
+			'TK_BAK_GEN' => 29,
+			'TK_INCL' => 31,
+			'TK_BAK_DIR' => 32,
+			'TK_AUTO' => 33,
+			'TK_HOST' => 36,
+			'TK_COMP' => 35
 		},
-		DEFAULT => -18
+		DEFAULT => -18,
+		GOTOS => {
+			'stmt' => 30,
+			'stmts' => 54,
+			'action' => 34
+		}
 	},
 	{#State 44
 		ACTIONS => {
-			'TK_STRING' => 53
-		}
+			'TK_STRING' => 55
+		},
+		DEFAULT => -23
 	},
 	{#State 45
-		DEFAULT => -21
+		DEFAULT => -27
 	},
 	{#State 46
-		ACTIONS => {
-			'TK_BLOCK_END' => 54,
-			'TK_ON' => 55
-		}
+		DEFAULT => -26
 	},
 	{#State 47
-		DEFAULT => -34
+		DEFAULT => -20
 	},
 	{#State 48
 		ACTIONS => {
-			'TK_EXEC' => 61,
-			'TK_LOGFILE' => 58,
-			'TK_PATTERN' => 60,
-			'TK_DOLOCAL' => 59
-		},
-		DEFAULT => -41,
-		GOTOS => {
-			'action_stmt' => 56,
-			'action_stmts' => 57
+			'TK_STRING' => 56
 		}
 	},
 	{#State 49
-		DEFAULT => -16
+		DEFAULT => -24
 	},
 	{#State 50
-		DEFAULT => -36
+		ACTIONS => {
+			'TK_STRING' => 58,
+			'TK_POPEN' => 57
+		},
+		DEFAULT => -21
 	},
 	{#State 51
-		DEFAULT => -30,
-		GOTOS => {
-			'host_list_slaves' => 62
+		ACTIONS => {
+			'TK_BLOCK_END' => 59,
+			'TK_ON' => 60
 		}
 	},
 	{#State 52
-		ACTIONS => {
-			'TK_AT' => 63
-		},
-		DEFAULT => -27
+		DEFAULT => -37
 	},
 	{#State 53
 		ACTIONS => {
-			'TK_STEND' => -38
+			'TK_EXEC' => 66,
+			'TK_LOGFILE' => 63,
+			'TK_PATTERN' => 65,
+			'TK_DOLOCAL' => 64
 		},
-		DEFAULT => -36
+		DEFAULT => -44,
+		GOTOS => {
+			'action_stmt' => 61,
+			'action_stmts' => 62
+		}
 	},
 	{#State 54
-		DEFAULT => -5
+		DEFAULT => -19
 	},
 	{#State 55
-		ACTIONS => {
-			'TK_STRING' => 64
-		}
+		DEFAULT => -39
 	},
 	{#State 56
 		ACTIONS => {
-			'TK_STEND' => 65
-		}
+			'TK_STEND' => -41
+		},
+		DEFAULT => -39
 	},
 	{#State 57
-		ACTIONS => {
-			'TK_BLOCK_END' => 66
+		DEFAULT => -33,
+		GOTOS => {
+			'host_list_slaves' => 67
 		}
 	},
 	{#State 58
 		ACTIONS => {
-			'TK_STRING' => 67
-		}
+			'TK_AT' => 68
+		},
+		DEFAULT => -30
 	},
 	{#State 59
-		DEFAULT => -46
+		DEFAULT => -5
 	},
 	{#State 60
-		DEFAULT => -47,
-		GOTOS => {
-			'action_pattern_list' => 68
+		ACTIONS => {
+			'TK_STRING' => 69
 		}
 	},
 	{#State 61
-		DEFAULT => -49,
-		GOTOS => {
-			'action_exec_list' => 69
+		ACTIONS => {
+			'TK_STEND' => 70
 		}
 	},
 	{#State 62
 		ACTIONS => {
-			'TK_PCLOSE' => 70,
-			'TK_STRING' => 71
+			'TK_BLOCK_END' => 71
 		}
 	},
 	{#State 63
@@ -729,92 +752,118 @@ sub new {
 		}
 	},
 	{#State 64
-		ACTIONS => {
-			'TK_COLON' => 73
-		}
+		DEFAULT => -49
 	},
 	{#State 65
-		ACTIONS => {
-			'TK_EXEC' => 61,
-			'TK_LOGFILE' => 58,
-			'TK_PATTERN' => 60,
-			'TK_DOLOCAL' => 59
-		},
-		DEFAULT => -41,
+		DEFAULT => -50,
 		GOTOS => {
-			'action_stmt' => 56,
-			'action_stmts' => 74
+			'action_pattern_list' => 73
 		}
 	},
 	{#State 66
-		DEFAULT => -40
+		DEFAULT => -52,
+		GOTOS => {
+			'action_exec_list' => 74
+		}
 	},
 	{#State 67
-		DEFAULT => -45
+		ACTIONS => {
+			'TK_PCLOSE' => 75,
+			'TK_STRING' => 76
+		}
 	},
 	{#State 68
 		ACTIONS => {
-			'TK_STRING' => 75
-		},
-		DEFAULT => -43
+			'TK_STRING' => 77
+		}
 	},
 	{#State 69
 		ACTIONS => {
-			'TK_STRING' => 76
-		},
-		DEFAULT => -44
+			'TK_COLON' => 78
+		}
 	},
 	{#State 70
-		DEFAULT => -26,
+		ACTIONS => {
+			'TK_EXEC' => 66,
+			'TK_LOGFILE' => 63,
+			'TK_PATTERN' => 65,
+			'TK_DOLOCAL' => 64
+		},
+		DEFAULT => -44,
 		GOTOS => {
-			'host_list' => 77
+			'action_stmt' => 61,
+			'action_stmts' => 79
 		}
 	},
 	{#State 71
-		ACTIONS => {
-			'TK_AT' => 78
-		},
-		DEFAULT => -31
+		DEFAULT => -43
 	},
 	{#State 72
-		DEFAULT => -28
+		DEFAULT => -48
 	},
 	{#State 73
 		ACTIONS => {
-			'TK_STRING' => 79
-		}
+			'TK_STRING' => 80
+		},
+		DEFAULT => -46
 	},
 	{#State 74
-		DEFAULT => -42
+		ACTIONS => {
+			'TK_STRING' => 81
+		},
+		DEFAULT => -47
 	},
 	{#State 75
-		DEFAULT => -48
+		DEFAULT => -29,
+		GOTOS => {
+			'host_list' => 82
+		}
 	},
 	{#State 76
-		DEFAULT => -50
+		ACTIONS => {
+			'TK_AT' => 83
+		},
+		DEFAULT => -34
 	},
 	{#State 77
-		ACTIONS => {
-			'TK_STRING' => 52,
-			'TK_POPEN' => 51
-		},
-		DEFAULT => -29
+		DEFAULT => -31
 	},
 	{#State 78
 		ACTIONS => {
-			'TK_STRING' => 80
+			'TK_STRING' => 84
 		}
 	},
 	{#State 79
-		ACTIONS => {
-			'TK_STEND' => 81
-		}
+		DEFAULT => -45
 	},
 	{#State 80
-		DEFAULT => -32
+		DEFAULT => -51
 	},
 	{#State 81
-		DEFAULT => -11
+		DEFAULT => -53
+	},
+	{#State 82
+		ACTIONS => {
+			'TK_STRING' => 58,
+			'TK_POPEN' => 57
+		},
+		DEFAULT => -32
+	},
+	{#State 83
+		ACTIONS => {
+			'TK_STRING' => 85
+		}
+	},
+	{#State 84
+		ACTIONS => {
+			'TK_STEND' => 86
+		}
+	},
+	{#State 85
+		DEFAULT => -35
+	},
+	{#State 86
+		DEFAULT => -14
 	}
 ],
                                   yyrules  =>
@@ -834,214 +883,226 @@ sub new {
 	[#Rule 4
 		 '@1-2', 0,
 sub
-#line 316 "psync_cfg_parser.y"
+#line 360 "syncdiff_cfg_parser.y"
 { new_prefix($_[2]); }
 	],
 	[#Rule 5
 		 'block', 6,
 sub
-#line 318 "psync_cfg_parser.y"
+#line 362 "syncdiff_cfg_parser.y"
 { }
 	],
 	[#Rule 6
 		 'block', 3, undef
 	],
 	[#Rule 7
-		 'block', 2,
-sub
-#line 321 "psync_cfg_parser.y"
-{ disable_cygwin_lowercase_hack(); }
+		 'block', 3, undef
 	],
 	[#Rule 8
-		 'ignore_list', 0, undef
+		 'block', 2,
+sub
+#line 366 "syncdiff_cfg_parser.y"
+{ disable_cygwin_lowercase_hack(); }
 	],
 	[#Rule 9
-		 'ignore_list', 2,
-sub
-#line 327 "psync_cfg_parser.y"
-{ new_ignore($_[1]); }
+		 'ignore_list', 0, undef
 	],
 	[#Rule 10
-		 'prefix_list', 0, undef
+		 'ignore_list', 2,
+sub
+#line 372 "syncdiff_cfg_parser.y"
+{ new_ignore($_[1]); }
 	],
 	[#Rule 11
-		 'prefix_list', 6,
-sub
-#line 333 "psync_cfg_parser.y"
-{ new_prefix_entry($_[3], on_cygwin_lowercase($_[5])); }
+		 'debug', 0, undef
 	],
 	[#Rule 12
-		 'block_header', 1,
+		 'debug', 2,
 sub
-#line 338 "psync_cfg_parser.y"
-{ new_group(0);  }
+#line 378 "syncdiff_cfg_parser.y"
+{ debug_mode($_[1]); }
 	],
 	[#Rule 13
-		 'block_header', 2,
-sub
-#line 340 "psync_cfg_parser.y"
-{ new_group($_[2]); }
+		 'prefix_list', 0, undef
 	],
 	[#Rule 14
-		 'block_body', 3,
+		 'prefix_list', 6,
 sub
-#line 345 "psync_cfg_parser.y"
-{ check_group(); }
+#line 384 "syncdiff_cfg_parser.y"
+{ new_prefix_entry($_[3], on_cygwin_lowercase($_[5])); }
 	],
 	[#Rule 15
-		 'stmts', 0, undef
+		 'block_header', 1,
+sub
+#line 389 "syncdiff_cfg_parser.y"
+{ new_group(0);  }
 	],
 	[#Rule 16
-		 'stmts', 3, undef
+		 'block_header', 2,
+sub
+#line 391 "syncdiff_cfg_parser.y"
+{ new_group($_[2]); }
 	],
 	[#Rule 17
-		 'stmts', 2, undef
+		 'block_body', 3,
+sub
+#line 396 "syncdiff_cfg_parser.y"
+{ check_group(); }
 	],
 	[#Rule 18
-		 'stmt', 2, undef
+		 'stmts', 0, undef
 	],
 	[#Rule 19
-		 'stmt', 2, undef
+		 'stmts', 3, undef
 	],
 	[#Rule 20
-		 'stmt', 2, undef
+		 'stmts', 2, undef
 	],
 	[#Rule 21
 		 'stmt', 2, undef
 	],
 	[#Rule 22
-		 'stmt', 2,
-sub
-#line 360 "psync_cfg_parser.y"
-{ set_key($_[2]); }
+		 'stmt', 2, undef
 	],
 	[#Rule 23
-		 'stmt', 2,
-sub
-#line 362 "psync_cfg_parser.y"
-{ set_auto($_[2]); }
+		 'stmt', 2, undef
 	],
 	[#Rule 24
-		 'stmt', 2,
-sub
-#line 364 "psync_cfg_parser.y"
-{ set_bak_dir($_[2]); }
+		 'stmt', 2, undef
 	],
 	[#Rule 25
 		 'stmt', 2,
 sub
-#line 366 "psync_cfg_parser.y"
-{ set_bak_gen($_[2]); }
+#line 411 "syncdiff_cfg_parser.y"
+{ set_key($_[2]); }
 	],
 	[#Rule 26
-		 'host_list', 0, undef
+		 'stmt', 2,
+sub
+#line 413 "syncdiff_cfg_parser.y"
+{ set_auto($_[2]); }
 	],
 	[#Rule 27
-		 'host_list', 2,
+		 'stmt', 2,
 sub
-#line 372 "psync_cfg_parser.y"
-{ add_host($_[2], $_[2], 0); }
+#line 415 "syncdiff_cfg_parser.y"
+{ set_bak_dir($_[2]); }
 	],
 	[#Rule 28
-		 'host_list', 4,
+		 'stmt', 2,
 sub
-#line 374 "psync_cfg_parser.y"
-{ add_host($_[2], $_[4], 0); }
+#line 417 "syncdiff_cfg_parser.y"
+{ set_bak_gen($_[2]); }
 	],
 	[#Rule 29
-		 'host_list', 5, undef
+		 'host_list', 0, undef
 	],
 	[#Rule 30
-		 'host_list_slaves', 0, undef
+		 'host_list', 2,
+sub
+#line 423 "syncdiff_cfg_parser.y"
+{ add_host($_[2], $_[2], 0); }
 	],
 	[#Rule 31
-		 'host_list_slaves', 2,
+		 'host_list', 4,
 sub
-#line 381 "psync_cfg_parser.y"
-{ add_host($_[2], $_[2], 1); }
+#line 425 "syncdiff_cfg_parser.y"
+{ add_host($_[2], $_[4], 0); }
 	],
 	[#Rule 32
-		 'host_list_slaves', 4,
-sub
-#line 383 "psync_cfg_parser.y"
-{ add_host($_[2], $_[4], 1); }
+		 'host_list', 5, undef
 	],
 	[#Rule 33
-		 'excl_list', 0, undef
+		 'host_list_slaves', 0, undef
 	],
 	[#Rule 34
-		 'excl_list', 2,
+		 'host_list_slaves', 2,
 sub
-#line 389 "psync_cfg_parser.y"
-{ add_patt(0, on_cygwin_lowercase($_[2])); }
+#line 432 "syncdiff_cfg_parser.y"
+{ add_host($_[2], $_[2], 1); }
 	],
 	[#Rule 35
-		 'incl_list', 0, undef
+		 'host_list_slaves', 4,
+sub
+#line 434 "syncdiff_cfg_parser.y"
+{ add_host($_[2], $_[4], 1); }
 	],
 	[#Rule 36
-		 'incl_list', 2,
-sub
-#line 395 "psync_cfg_parser.y"
-{ add_patt(1, on_cygwin_lowercase($_[2])); }
+		 'excl_list', 0, undef
 	],
 	[#Rule 37
-		 'comp_list', 0, undef
+		 'excl_list', 2,
+sub
+#line 440 "syncdiff_cfg_parser.y"
+{ add_patt(0, on_cygwin_lowercase($_[2])); }
 	],
 	[#Rule 38
-		 'comp_list', 2,
-sub
-#line 401 "psync_cfg_parser.y"
-{ add_patt(2, on_cygwin_lowercase($_[2])); }
+		 'incl_list', 0, undef
 	],
 	[#Rule 39
-		 '@2-1', 0,
+		 'incl_list', 2,
 sub
-#line 406 "psync_cfg_parser.y"
-{ new_action(); }
+#line 446 "syncdiff_cfg_parser.y"
+{ add_patt(1, on_cygwin_lowercase($_[2])); }
 	],
 	[#Rule 40
-		 'action', 5, undef
+		 'comp_list', 0, undef
 	],
 	[#Rule 41
-		 'action_stmts', 0, undef
+		 'comp_list', 2,
+sub
+#line 452 "syncdiff_cfg_parser.y"
+{ add_patt(2, on_cygwin_lowercase($_[2])); }
 	],
 	[#Rule 42
-		 'action_stmts', 3, undef
+		 '@2-1', 0,
+sub
+#line 457 "syncdiff_cfg_parser.y"
+{ new_action(); }
 	],
 	[#Rule 43
-		 'action_stmt', 2, undef
+		 'action', 5, undef
 	],
 	[#Rule 44
-		 'action_stmt', 2, undef
+		 'action_stmts', 0, undef
 	],
 	[#Rule 45
-		 'action_stmt', 2,
-sub
-#line 420 "psync_cfg_parser.y"
-{ set_action_logfile($_[2]); }
+		 'action_stmts', 3, undef
 	],
 	[#Rule 46
-		 'action_stmt', 1,
-sub
-#line 422 "psync_cfg_parser.y"
-{ set_action_dolocal(); }
+		 'action_stmt', 2, undef
 	],
 	[#Rule 47
-		 'action_pattern_list', 0, undef
+		 'action_stmt', 2, undef
 	],
 	[#Rule 48
-		 'action_pattern_list', 2,
+		 'action_stmt', 2,
 sub
-#line 428 "psync_cfg_parser.y"
-{ add_action_pattern(on_cygwin_lowercase($_[2])); }
+#line 471 "syncdiff_cfg_parser.y"
+{ set_action_logfile($_[2]); }
 	],
 	[#Rule 49
-		 'action_exec_list', 0, undef
+		 'action_stmt', 1,
+sub
+#line 473 "syncdiff_cfg_parser.y"
+{ set_action_dolocal(); }
 	],
 	[#Rule 50
+		 'action_pattern_list', 0, undef
+	],
+	[#Rule 51
+		 'action_pattern_list', 2,
+sub
+#line 479 "syncdiff_cfg_parser.y"
+{ add_action_pattern(on_cygwin_lowercase($_[2])); }
+	],
+	[#Rule 52
+		 'action_exec_list', 0, undef
+	],
+	[#Rule 53
 		 'action_exec_list', 2,
 sub
-#line 434 "psync_cfg_parser.y"
+#line 485 "syncdiff_cfg_parser.y"
 { add_action_exec($_[2]); }
 	]
 ],
@@ -1049,7 +1110,7 @@ sub
     bless($self,$class);
 }
 
-#line 437 "psync_cfg_parser.y"
+#line 488 "syncdiff_cfg_parser.y"
 
 
 
