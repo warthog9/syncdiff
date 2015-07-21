@@ -42,14 +42,14 @@ my $app = sub {
     my $req = Plack::Request->new($env);
     my ( $key, $dir, $host) = ( undef, undef, undef );
 
-    my $config = FileSync::SyncDiff::Config->new();
-    $config->read_config( "$Bin/../syncdiff.cfg" );
-
-    my $db = FileSync::SyncDiff::DB->new( config => $config );
-    $db->file( "$Bin/../psync.sqlite" );
-    $db->connect_and_fork();
-
     if ( $req->method eq 'POST' ) {
+        my $config = FileSync::SyncDiff::Config->new();
+        $config->read_config( "$Bin/../syncdiff.cfg" );
+
+        my $db = FileSync::SyncDiff::DB->new( config => $config );
+        $db->file( "$Bin/../psync.sqlite" );
+        $db->connect_and_fork();
+
         #CGI compatible
         ( $key, $dir, $host ) = ( $req->param('key'), $req->param('include'), $req->param('host') );
 
