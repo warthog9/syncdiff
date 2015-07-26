@@ -111,11 +111,8 @@ sub setup {
 
 	my $response = $self->send_request( %request );
 
-#	print "Protocol V1 - Setup - Version request response:\n";
-#	print Dumper $response;
-
 	if( $response ne "1.0" ){  # This is the only protocol version we support right now
-		print "We don't currently support protocol version: ". $response ." - bailing out\n";
+		print STDERR "We don't currently support protocol version: ". $response ." - bailing out\n";
 		exit(1);
 	}
 } # end setup()
@@ -137,27 +134,27 @@ sub client_run {
 	my( $self ) = @_;
 	my $dbref = $self->dbref;
 
-	print "Client is now running with Protocol major version 1\n";
+	print STDERR "Client is now running with Protocol major version 1\n";
 
 	my $remote_current_log_position = $self->getCurrentLogPosition();
 	my $remote_previous_log_position = $dbref->get_remote_log_position( $self->hostname, $self->group );
 
-	print "Current log position |". $remote_current_log_position ."|\n";
-	print "Previous log position |". $remote_previous_log_position ."|\n";
+	print STDERR "Current log position |". $remote_current_log_position ."|\n";
+	print STDERR "Previous log position |". $remote_previous_log_position ."|\n";
 
 	if( $remote_current_log_position ne $remote_previous_log_position ){
-		print "Updates were found!\n";
+		print STDERR "Updates were found!\n";
 
 		my $file_updates = $self->get_updates_from_remote( $remote_previous_log_position);
 
-		print "Files changed array:\n";
-		print Dumper $file_updates;
-		print "^^^^^^^^^^^^^^^^^^^^\n";
+		print STDERR "Files changed array:\n";
+		print STDERR Dumper $file_updates;
+		print STDERR "^^^^^^^^^^^^^^^^^^^^\n";
 
-		print "Going to save this out as: ". $self->hostname ." | ". $self->group ." | ". $remote_current_log_position ."\n";
+		print STDERR "Going to save this out as: ". $self->hostname ." | ". $self->group ." | ". $remote_current_log_position ."\n";
 		$dbref->set_remote_log_position( $self->hostname, $self->group, $remote_current_log_position );
 	} else {
-		print "No updates found\n";
+		print STDERR "No updates found\n";
 	}
 } # end client_run()
 
@@ -171,48 +168,48 @@ sub get_updates_from_remote {
 
 	my $response = $self->send_request( %request );
 
-	print "Files Changed Since $remote_previous_log_position:\n";
-	print Dumper $response;
+	print STDERR "Files Changed Since $remote_previous_log_position:\n";
+	print STDERR Dumper $response;
 
 	my $x = 0;
 	my $num_keys = keys %{$response};
 
-	print "--------------------------------------------------------------\n";
-	print "***                  STARTING FILE                         ***\n";
-	printf("***                  %3d/%3d                               ***\n", $x, $num_keys);
-	print "--------------------------------------------------------------\n";
+	print STDERR "--------------------------------------------------------------\n";
+	print STDERR "***                  STARTING FILE                         ***\n";
+	printf(STDERR "***                  %3d/%3d                               ***\n", $x, $num_keys);
+	print STDERR "--------------------------------------------------------------\n";
 	$x = $x + 1;
 
 	foreach my $id ( sort { $a <=> $b } keys %{$response} ){
-		print "Id is: $id\n";
+		print STDERR "Id is: $id\n";
 
 		my $temp_file = FileSync::SyncDiff::File->new(dbref => $self->dbref );
 		$temp_file->from_hash( $response->{$id} );	
 
-		print "Before fork:\n";
-		print Dumper $temp_file;
+		print STDERR "Before fork:\n";
+		print STDERR Dumper $temp_file;
 
 		my $pid = 0;
 
 		if( $temp_file->filetype ne "file" ){
-			print "--------------------------------------------------------------\n";
-			print "***                  NEXT FILE                             ***\n";
-			printf("***                  %3d/%3d                               ***\n", $x, $num_keys);
-			print "--------------------------------------------------------------\n";
+			print STDERR "--------------------------------------------------------------\n";
+			print STDERR "***                  NEXT FILE                             ***\n";
+			printf(STDERR "***                  %3d/%3d                               ***\n", $x, $num_keys);
+			print STDERR "--------------------------------------------------------------\n";
 			$x = $x + 1;
 			next;
 		}
 
 		if( ( $pid = fork() ) == 0 ){
 			# child process
-			print "V1: About to chroot to - |". $self->groupbase ."|\n";
+			print STDERR "V1: About to chroot to - |". $self->groupbase ."|\n";
 
-			print "Group base: ". $self->groupbase ."\n";
+			print STDERR "Group base: ". $self->groupbase ."\n";
 
 			chroot( $self->groupbase );
 			chdir( "/" );
 
-			print "chrooted\n";
+			print STDERR "chrooted\n";
 
 			# Ok for simplicities sake, and to
 			# get past the file transfer section
@@ -234,9 +231,6 @@ sub get_updates_from_remote {
 			# good marketing material on second
 			# thought....
 
-			#if( -e $temp_file->filepath ){
-				#file exists, we should compare things before we get too far here.... *BUT* I don't want to deal with that code quite yet
-			#}
 			if( $temp_file->filetype eq "file" ){
 				$self->sync_file( $temp_file->path, $temp_file->filename, $temp_file->filepath, $temp_file->checksum );
 			}
@@ -261,15 +255,15 @@ sub get_updates_from_remote {
 		#	from the code perspective
 		my $kid = undef;
 
-		print "Going to wait for child:\n";
+		print STDERR "Going to wait for child:\n";
 		do {
 			$kid = waitpid($pid,0);
-			print ".";
+			print STDERR ".";
 		} while $kid > 0;
 		my $child_ret_code = $?;
-		print "\n";
-		print "Pid we were expecting: $pid | Pid that Died: $kid\n";
-		print "Child Return Code: |$child_ret_code|\n";
+		print STDERR "\n";
+		print STDERR "Pid we were expecting: $pid | Pid that Died: $kid\n";
+		print STDERR "Child Return Code: |$child_ret_code|\n";
 
 		if( $temp_file->filetype eq "file" ){
 
@@ -277,21 +271,21 @@ sub get_updates_from_remote {
 			$new_file_obj->get_file( $temp_file->filepath, $self->group, $self->groupbase );
 			$new_file_obj->checksum_file();
 
-			print Dumper $new_file_obj;
+			print STDERR Dumper $new_file_obj;
 
-			print "External checking of checksum: \n";
-			print "Passed checksum: ". $temp_file->checksum() ."\n";
-			print "Saved checksum:  ". $new_file_obj->checksum() ."\n";
+			print STDERR "External checking of checksum: \n";
+			print STDERR "Passed checksum: ". $temp_file->checksum() ."\n";
+			print STDERR "Saved checksum:  ". $new_file_obj->checksum() ."\n";
 			if( $new_file_obj->checksum() ne $temp_file->checksum ){
-				print "Checksums don't match - ERGH!\n";
+				print STDERR "Checksums don't match - ERGH!\n";
 				exit();
 			}
 			#exit();
 		}
-		print "--------------------------------------------------------------\n";
-		print "***                  NEXT FILE                             ***\n";
-		printf("***                  %3d/%3d                               ***\n", $x, $num_keys);
-		print "--------------------------------------------------------------\n";
+		print STDERR "--------------------------------------------------------------\n";
+		print STDERR "***                  NEXT FILE                             ***\n";
+		printf(STDERR "***                  %3d/%3d                               ***\n", $x, $num_keys);
+		print STDERR "--------------------------------------------------------------\n";
 		$x = $x + 1;
 	} #end foreach response I.E. files
 
@@ -304,7 +298,7 @@ sub sync_file {
 	my $basis = undef;
 	my $sig = undef;
 
-	print "Going to sync the file $filepath\n";
+	print STDERR "Going to sync the file $filepath\n";
 
 	if( ! -d $path ){
 		# path hasn't been created yet
@@ -313,20 +307,11 @@ sub sync_file {
 		# do a mkdir based on the 
 		# path for the file
 
-		print "Making directory: ". $path ."\n";
+		print STDERR "Making directory: ". $path ."\n";
 		make_path($path, { verbose => 1, } );
 	}
 
 	my $dir = "/";
-	#my $dir = "/group2/Kickstarter Deluxe Digital Album/";
-
-#	opendir(DIR, $dir) or die $!;
-#
-#	while (my $file = readdir(DIR)) {
-#		print "$file\n";
-#	}
-#
-#	closedir(DIR);
 
 	if( ! -e $filepath ){
 		open HANDLE, ">>$filepath" or die "touch $filepath: $!\n"; 
@@ -361,12 +346,6 @@ sub sync_file {
 		'path'		=>	$path,
 	);
 
-	#print "----------------------\n";
-	#print "Request:\n";
-	#print "----------------------\n";
-	#print Dumper \%request;
-	#print "^^^^^^^^^^^^^^^^^^^^^^\n";
-
 	my $response_hash = $self->send_request( %request );
 
 	while(
@@ -378,17 +357,16 @@ sub sync_file {
 		||
 		$response_hash->{path} ne $path
 	){
-		print "*******************************************\n";
-		print "This isn't the response we are expecting...\n";
-		print "*******************************************\n";
-		print Dumper $response_hash;
-		print "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n";
+		print STDERR "*******************************************\n";
+		print STDERR "This isn't the response we are expecting...\n";
+		print STDERR "*******************************************\n";
+		print STDERR Dumper $response_hash;
+		print STDERR "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n";
 		$response_hash = $self->plain_receiver( \%request );
 	}
 
 
 	# response is acquired, lets actually lay some bits down
-	
 	if( $response_hash->{filename} ne $filename ){
 		my $line = undef;
 		my $socket = $self->socket;
@@ -400,16 +378,16 @@ sub sync_file {
 			}
 		} # end while loop waiting on socket to return
 
-		print "EXTRA: $line\n";
+		print STDERR "EXTRA: $line\n";
 	}
 
-	print Dumper $response_hash;
+	print STDERR Dumper $response_hash;
 
 	my $checksum_resp = sha256_base64($response_hash->{delta});
-	print "v1 - response_hash calculated: ". $checksum_resp ."\n";
-	print "v1 - reponse_hash what sent:   ". $response_hash->{checksum} ."\n";
+	print STDERR "v1 - response_hash calculated: ". $checksum_resp ."\n";
+	print STDERR "v1 - reponse_hash what sent:   ". $response_hash->{checksum} ."\n";
 	if( $checksum_resp ne $response_hash->{checksum}){
-		print "Ok on the recieve buffer the checksums don't match WTF!\n";
+		print STDERR "Ok on the recieve buffer the checksums don't match WTF!\n";
 		sleep 30;
 	}
 	
@@ -417,14 +395,13 @@ sub sync_file {
 	
 	my $response = decode_base64( $response64 );
 	
-	print "----------------------\n";
-	print "Response:\n";
-	print "----------------------\n";
-	#print Dumper $response;
-	#print Dumper $response64;
-	print "Length: ". length( $response64 ) ."\n";
-	print "Response: |". $response64 ."|\n";
-	print "^^^^^^^^^^^^^^^^^^^^^^\n";
+	print STDERR "----------------------\n";
+	print STDERR "Response:\n";
+	print STDERR "----------------------\n";
+
+	print STDERR "Length: ". length( $response64 ) ."\n";
+	print STDERR "Response: |". $response64 ."|\n";
+	print STDERR "^^^^^^^^^^^^^^^^^^^^^^\n";
 
 	my $base = undef;
 
@@ -442,37 +419,29 @@ sub sync_file {
 	print $delta $response;
 	seek $delta, 0, 0;
 
-	print "Delta filename: $delta_filename\n";
-
-#	my $new_path = $filepath;
-#	print "New Path: ". $new_path ."$$\n";
-	#open( $new, ">", $new_path .".new" ) or die "STUFF!: $!";
-	#open( $new, ">", $new_path ) or die "STUFF!: $!";
+	print STDERR "Delta filename: $delta_filename\n";
 
 	($new, $new_path) = tempfile( UNLINK => 1, );
 	binmode( $new, ':raw');
 
-	print "Chocking around here I bet\n";
+	print STDERR "Chocking around here I bet\n";
 	File::Rdiff::patch_file $base, $delta, $new;
-	print "Yup\n";
+	print STDERR "Yup\n";
 
 	close $new;
 	close $base;
 	close $delta;
-	#unlink $delta_filename;
 
 	my $new_file_obj = FileSync::SyncDiff::File->new(dbref => $self->dbref);
 	$new_file_obj->get_file( $new_path, $self->group, $self->groupbase );
 	$new_file_obj->checksum_file();
 
-	
+	print STDERR "Transfered file checksum: ". $checksum ."\n";
 
-	print "Transfered file checksum: ". $checksum ."\n";
-
-	print "New File Checksum:        ". $new_file_obj->checksum() ."\n";
+	print STDERR "New File Checksum:        ". $new_file_obj->checksum() ."\n";
 
 	if( $checksum ne $new_file_obj->checksum() ){
-		print "*************** Checksums don't match\n";
+		print STDERR "*************** Checksums don't match\n";
 		return;
 	}
 
@@ -486,8 +455,8 @@ sub _get_files_changed_since {
 	
 	my $file_list = $dbref->get_files_changed_since( $self->group, $transactionid );
 
-	print "V1: Files found changed since $transactionid\n";
-	print Dumper $file_list;
+	print STDERR "V1: Files found changed since $transactionid\n";
+	print STDERR Dumper $file_list;
 
 	return $file_list
 } # end get_files_changed_since()
@@ -501,9 +470,6 @@ sub getCurrentLogPosition {
 
 	my $response = $self->send_request( %request );
 
-#	print "Found Log Position response\n";
-#	print Dumper $response;
-
 	return $response;
 } # end getCurrentLogPosition()
 
@@ -511,9 +477,6 @@ sub shareCurrentLogPosition {
 	my( $self ) = @_;
 
 	my $logPosition = $self->dbref->current_log_position();
-
-#	print "Log position is:\n";
-#	print Dumper $logPosition
 
 } # end shareCurrentLogPosition()
 	
@@ -531,49 +494,34 @@ sub getVersion {
 sub server_process_request {
 	my( $self, $response ) = @_;
 
-#	print "Server version 1 got response: \n";
-#	print Dumper $response;
-
 	if( ! exists( $response->{v1_operation} ) ){
 		return;
 	}
 
 	if( $response->{v1_operation} eq "getLogPosition" ){
-#		print "DBref:\n";
-#		print Dumper $self->dbref;
 		my $logPosition = $self->dbref->current_log_position();
-#		print "Found log position on Server:\n";
-#		print Dumper $logPosition;
 		return $logPosition;
 	}
 	if( $response->{v1_operation} eq "get_files_changed_since" ){
 		my $files_changed_response = $self->_get_files_changed_since( $response->{transactionid} );
-#		print "---------------------\n";
-#		print "Response from get_files_changed_since:\n";
-#		print "---------------------\n";
-#		print Dumper $files_changed_response;
-#		print "^^^^^^^^^^^^^^^^^^^^^\n";
-
 		return $files_changed_response;
 	}
 	if( $response->{v1_operation} eq "syncfile" ){
-		print "--------------------------------------------------------------\n";
-		print "***                  START SYNCFILE                        ***\n";
-		print "--------------------------------------------------------------\n";
+		print STDERR "--------------------------------------------------------------\n";
+		print STDERR "***                  START SYNCFILE                        ***\n";
+		print STDERR "--------------------------------------------------------------\n";
 
 		my $pid = 0;
 
 		if( ( $pid = fork() ) == 0 ){
 			# child process
-			
 			chroot( $self->groupbase );
 			chdir( "/" );
 
-			print "\n\n";
-			print "chrooted\n";
-			print "\n\n";
+			print STDERR "\n\n";
+			print STDERR "chrooted\n";
+			print STDERR "\n\n";
 
-			
 			my $sync_ret = $self->_syncfile(
 				$response->{path},
 				$response->{filename},
@@ -581,8 +529,8 @@ sub server_process_request {
 				$response->{signature},
 			);
 
-			print "~~ after syncfile response length: ". length( $sync_ret ) ."\n";
-			print "Length of encoded delta buffer: ". length( $sync_ret->{delta} ) ."\n";
+			print STDERR "~~ after syncfile response length: ". length( $sync_ret ) ."\n";
+			print STDERR "Length of encoded delta buffer: ". length( $sync_ret->{delta} ) ."\n";
 
 			$self->plain_send( $sync_ret );
 			exit(0);
@@ -592,9 +540,9 @@ sub server_process_request {
 		do {
 			$child = waitpid( $pid, 0);
 		} while( $child > 0);
-		print "--------------------------------------------------------------\n";
-		print "***                  END SYNCFILE                          ***\n";
-		print "--------------------------------------------------------------\n";
+		print STDERR "--------------------------------------------------------------\n";
+		print STDERR "***                  END SYNCFILE                          ***\n";
+		print STDERR "--------------------------------------------------------------\n";
 	}
 
 	return undef;
@@ -612,50 +560,26 @@ sub _syncfile {
 	open( $new, "<", $filepath ) or die "new_buffer: $filepath - $!\n";	
 	binmode( $new, ':raw');
 
-#	print "--------------------------\n";
-#	print "Sig64 encoded:\n";
-#	print "--------------------------\n";
-#	#my $str = $signature64;
-#	#substr($str, 20) = "";
-#	#print "$str\n";   # prints "abc"
-#	print Dumper $signature64;
-#	print "^^^^^^^^^^^^^^^^^^^^^^^^^^\n";
-
-
 	my ($sig, $sig_filename) = tempfile();
 	binmode( $sig, ":raw" );
 	print $sig decode_base64( $signature64 );;
 	seek $sig, 0, 0;
 
-	print Dumper $sig;
+	print STDERR Dumper $sig;
 
-	print "Loading sig file\n";
+	print STDERR "Loading sig file\n";
 
 	$sig = loadsig_file $sig;
 
 	ref $sig or exit 1;
 
-	print "Building hash table\n";
+	print STDERR "Building hash table\n";
 
 	$sig->build_hash_table;
 
-	print "Deltafying things\n";
+	print STDERR "Deltafying things\n";
 
 	File::Rdiff::delta_file $sig, $new, $delta;
-
-#	print "--------------------------\n";
-#	print "Sig:\n";
-#	print "--------------------------\n";
-#	print Dumper $sig;
-#	print "--------------------------\n";
-#	print "New:\n";
-#	print "--------------------------\n";
-#	print Dumper $new;
-#	print "--------------------------\n";
-#	print "Delta:\n";
-#	print "--------------------------\n";
-#	print Dumper $delta;
-#	print "^^^^^^^^^^^^^^^^^^^^^^^^^^\n";
 
 	my $delta_buffer = "";
 
@@ -663,48 +587,29 @@ sub _syncfile {
 	my $bytes_read = 0;
 	my $data;
 	while ((my $n = read $delta, $data, 4096) != 0) {
-		#print "~~ $n bytes read\n";
 		$bytes_read = $bytes_read + $n;
 		$delta_buffer .= $data;
 	}
-	print "~ $bytes_read from Delta file\n";
+	print STDERR "~ $bytes_read from Delta file\n";
 
-	print "Length of Delta Buffer: ". length( $delta_buffer ) ."\n";
+	print STDERR "Length of Delta Buffer: ". length( $delta_buffer ) ."\n";
 
-
-	#close $sig;
 	unlink $sig_filename;
 	close $delta;
 	unlink $delta_filename;
 	close $new;
 
 	my $delta_buffer_encoded = encode_base64( $delta_buffer );
-	print "Length of Delta Buffer: ". length( $delta_buffer ) ."\n";
-	print "Length of encoded delta buffer: ". length( $delta_buffer_encoded ) ."\n";
+	print STDERR "Length of Delta Buffer: ". length( $delta_buffer ) ."\n";
+	print STDERR "Length of encoded delta buffer: ". length( $delta_buffer_encoded ) ."\n";
 
 
 
-	print "--------------------------\n";
-	print "Delta Buffer encoded:\n";
-	print "--------------------------\n";
-#	my $str = $delta_buffer_encoded;
-#	substr($str, 20) = "";
-#	print "$str\n";   # prints "abc"
-	#print Dumper $delta_buffer_encoded;
-	print "Total length: ". length( $delta_buffer_encoded ). "\n";
-	print "^^^^^^^^^^^^^^^^^^^^^^^^^^\n";
-
-#	print "--------------------------\n";
-#	print "Delta encoded:\n";
-#	print "--------------------------\n";
-#	my $str = $delta_buffer_encoded;
-#	substr($str, 250) = "";
-#	print "$str\n";   # prints "abc"
-#	print substr( $str, 0, 250 ) ."\n";
-#	print Dumper $delta_buffer_encoded;
-#	print "^^^^^^^^^^^^^^^^^^^^^^^^^^\n";
-
-
+	print STDERR "--------------------------\n";
+	print STDERR "Delta Buffer encoded:\n";
+	print STDERR "--------------------------\n";
+	print STDERR "Total length: ". length( $delta_buffer_encoded ). "\n";
+	print STDERR "^^^^^^^^^^^^^^^^^^^^^^^^^^\n";
 
 	my %response = (
 		delta	=>	$delta_buffer_encoded,
@@ -715,14 +620,11 @@ sub _syncfile {
 		filepath => $filepath,
 	);
 
-	print "Length of encoded delta buffer: ". length( $response{delta} ) ."\n";
+	print STDERR "Length of encoded delta buffer: ". length( $response{delta} ) ."\n";
 
-	#return $delta_buffer_encoded;
 	return \%response;
 }
 
-#no moose;
 __PACKAGE__->meta->make_immutable;
-#__PACKAGE__->meta->make_immutable(inline_constructor => 0,);
 
 1;

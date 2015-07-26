@@ -114,7 +114,6 @@ has 'remote_hostname' => (
 sub run {
 	my( $self ) = @_;
 
-	$self->_clean_up();
 	$self->fork();
 } # end run()
 
@@ -125,13 +124,17 @@ sub run {
 override 'run_child' => sub {
 	my( $self ) = @_;
 
-	$self->recv_loop();
+	eval {
+		$self->recv_loop();
+	};
+	if ($@) {
+		print STDERR $@;
+		exit(0);
+	}
 }; # end run_child()
 
 sub _process_request {
 	my( $self, $recv_line ) = @_;
-
-#	print "Listener got: $recv_line\n";
 
 	if( ! defined $recv_line ){
 		return undef;
@@ -143,12 +146,9 @@ sub _process_request {
 	};
 
 	if( ! $json_success ){
-		print "JSON was malformed, ignoring - ". $recv_line ."\n";
+		print STDERR "JSON was malformed, ignoring - ". $recv_line ."\n";
 		return undef;
 	}
-
-#	print "Server - _process_request:\n";
-#	print Dumper $response;
 
 	if(
 		exists( $response->{operation} )
@@ -163,14 +163,14 @@ sub _process_request {
 	){
 		my $auth_status = $self->_check_authentication( $response->{hostname}, $response->{group}, $response->{key} );
 
-		print "_process_request Auth Status: $auth_status\n";
+		print STDERR "_process_request Auth Status: $auth_status\n";
 
 		if( $auth_status == 0 ){
-			print "Socket Die, Auth really failed\n";
+			print STDERR "Socket Die, Auth really failed\n";
 			return "SOCKDIE";
 		}
 
-		print "Going to return successful Authentication\n";
+		print STDERR "Going to return successful Authentication\n";
 		return 0;
 	}
 	if(
@@ -188,8 +188,8 @@ sub _process_request {
 		&&
 		$response->{request_version} < 2
 	){
-		print "Primary protocol version 1 found\n";
-		print Dumper $self->groupbase;
+		print STDERR "Primary protocol version 1 found\n";
+		print STDERR Dumper $self->groupbase;
 		$self->proto(
 			FileSync::SyncDiff::Protocol::v1->new(
 				socket => $self->socket,
@@ -212,20 +212,17 @@ sub _check_authentication {
 	my ( $self, $remote_hostname, $group, $key ) = @_;
 	my $config = $self->config;
 
-	my $group_key = $config->{groups}->{ $group }->{key};	
-#	print "--------------------------\n";
-#	print Dumper $config;
-#	print "^^^^^^^^^^^^^^^^^^^^^^^^^^\n";
+	my $group_key = $config->{groups}->{ $group }->{key};
 
-	print "Got: Group |$group| Key |$key|\n";
-	print "We have |$group_key|\n";
+	print STDERR "Got: Group |$group| Key |$key|\n";
+	print STDERR "We have |$group_key|\n";
 
 	if( $key eq $group_key ){
-		print "Auth succeeded\n";
+		print STDERR "Auth succeeded\n";
 		$self->group( $group );
 		$self->remote_hostname( $remote_hostname );
 
-		print Dumper $config->{groups}->{ $group };
+		print STDERR Dumper $config->{groups}->{ $group };
 		$self->groupbase( $config->{groups}->{ $group }->{patterns}[0] );
 		return 1;
 	}
@@ -233,16 +230,6 @@ sub _check_authentication {
 	return 0;
 } # end _check_authentication()
 
-sub _clean_up {
-	my ( $self ) = @_;
-
-	$self->dbref->clean_connections();
-
-	return 1;
-}
-
-#no moose;
 __PACKAGE__->meta->make_immutable;
-#__PACKAGE__->meta->make_immutable(inline_constructor => 0,);
 
 1;

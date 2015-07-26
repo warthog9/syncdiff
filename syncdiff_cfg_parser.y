@@ -61,9 +61,6 @@ sub get_ignores {
 
 sub new_group {
 	my ($name) = @_;
-#	print "function: new_group()\n";
-#
-#	print "\tnew_group - name: ". $name ."\n";
 
 	if( $name eq "" ){
 		$name = "group_". $autonum;
@@ -125,9 +122,6 @@ sub add_host {
 sub add_patt {
 	my($flat, $pattern) = @_;
 
-#	print "function: add_patt()\n";
-#	print "\tadd_patt - pattern: ". $pattern ."\n";
-
 	if(
 		$groups{$curgroup}->{'patterns'} == undef
 		||
@@ -142,10 +136,9 @@ sub add_patt {
 
 sub set_key {
 	my( $key ) = @_;
-#	print "function: set_key()\n";
 
 	if( $groups{$curgroup}->{'key'} ne "" ){
-		print "*** Multiple keys found for group '". $curgroup ."' - last one wins!  You are warned. ***\n";
+		print STDERR "*** Multiple keys found for group '". $curgroup ."' - last one wins!  You are warned. ***\n";
 	}
 
 	if(
@@ -159,19 +152,18 @@ sub set_key {
 		close (FILE);  
 	}
 
-	print "Key is: $key\n";
+	print STDERR "Key is: $key\n";
 
 	if( length($key) < 32 ){
-		print "*** WARNING ***\n";
-		print "\tKey for group:". $curgroup ." is less than 32 charaters.  Security is at risk\n";
-		print "***************\n";
+		print STDERR "*** WARNING ***\n";
+		print STDERR "\tKey for group:". $curgroup ." is less than 32 charaters.  Security is at risk\n";
+		print STDERR "***************\n";
 	}
 	$groups{$curgroup}->{'key'} = $key;
 } # end set_key()
 
 sub set_auto {
 	my ( $auto_resolve ) = @_;
-#	print "function: set_auto()\n";
 
 	$auto_resolve = lc( $auto_resolve );
 
@@ -210,28 +202,26 @@ sub set_auto {
 		return;
 	}
 
-	print "*** WARNING ***\n";
-	print "\tUnknown auto resolution mechanism: ". $auto_resolve ."\n";
-	print "\tIgnoring option\n";
-	print "***************\n";
+	print STDERR "*** WARNING ***\n";
+	print STDERR "\tUnknown auto resolution mechanism: ". $auto_resolve ."\n";
+	print STDERR "\tIgnoring option\n";
+	print STDERR "***************\n";
 } # end set_auto()
 
 sub set_bak_dir {
 	my ($back_dir) = @_;
-#	print "function: set_bak_dir()\n";
 
 	$groups{$curgroup}->{'back_dir'} = $back_dir;
 } # end set_bak_dir();
 
 sub set_bak_gen {
 	my ($backup_generations) = @_;
-#	print "function: set_bak_gen()\n";
 
 	if( $backup_generations =~ /[^0-9]+/ ){
-		print "*** WARNING ***\n";
-		print "\tUnknown number of Backup Generations:  ". $backup_generations ."\n";
-		print "\tIgnoring option\n";
-		print "***************\n";
+		print STDERR "*** WARNING ***\n";
+		print STDERR "\tUnknown number of Backup Generations:  ". $backup_generations ."\n";
+		print STDERR "\tIgnoring option\n";
+		print STDERR "***************\n";
 		return;
 	}
 
@@ -239,37 +229,33 @@ sub set_bak_gen {
 } # end set_back_gen()
 
 sub check_group {
-#	print "function: check_group()\n";
-
 	if( length( $groups{$curgroup}->{'key'} ) <= 0 ){
 		die("Config error: groups must have a key.\n");
 	}
 } # end check_group()
 
 sub new_action {
-	print "function: new_action()\n";
+	print STDERR "function: new_action()\n";
 } # end new_action()
 
 sub add_action_pattern {
-	print "function: add_action_pattern()\n";
+	print STDERR "function: add_action_pattern()\n";
 } # end add_action_pattern
 
 sub add_action_exec {
-	print "function: add_action_exec()\n";
+	print STDERR "function: add_action_exec()\n";
 } # end add_action_exec()
 
 sub set_action_logfile {
-	print "function: set_action_logfile()\n";
+	print STDERR "function: set_action_logfile()\n";
 } # end set_action_logfile()
 
 sub set_action_dolocal {
-	print "function: set_action_dolocal()\n";
+	print STDERR "function: set_action_dolocal()\n";
 } # end set_action_dolocal
 
 sub new_prefix {
 	my( $pname ) = @_;
-
-#	print "function: new_prefix: $pname\n";
 
 	$curprefix = $pname;
 
@@ -278,10 +264,9 @@ sub new_prefix {
 
 sub new_prefix_entry {
 	my( $pattern, $path ) = @_;
-#	print "function: new_prefix_entry()\n";
 
 	if( $path !~ /^\// ){
-		print "\t Prefix Path: '". $path ."' is not an absolute path.\n";
+		print STDERR "\t Prefix Path: '". $path ."' is not an absolute path.\n";
 	}
 
 	my $hostname = hostname;
@@ -301,7 +286,6 @@ sub new_prefix_entry {
 
 sub new_ignore {
 	my( $propname ) = @_;
-#	print "function: new_ignore()\n";
 
 	if( $propname eq "uid" ){
 		$ignore_uid = 1;
@@ -310,23 +294,20 @@ sub new_ignore {
 	} elsif( $propname eq "mod" ){
 		$ignore_mod = 1;
 	} else {
-		print "\tInvalid ignore option: '". $propname ."' - IGNORING\n";
+		print STDERR "\tInvalid ignore option: '". $propname ."' - IGNORING\n";
 	}
 } # end new_ignore()
 
 sub on_cygwin_lowercase {
 	my( $string ) = @_;
-#	print "function: on_cygwin_lowercase()\n";
 
 	lc( $string );
-
-#	print "on_cygwin_loewrcase: ". $string ."\n";
 
 	return $string;
 } # end on_cygwin_lowercase() 
 
 sub disable_cygwin_lowercase_hack {
-	print "function: disable_cygwin_lowercase_hack()\n";
+	print STDERR "function: disable_cygwin_lowercase_hack()\n";
 }
 
 %} # end of the code section

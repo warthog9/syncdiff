@@ -55,12 +55,6 @@ has 'lexer' => (
 sub read_config {
 	my ($self, $config_file) = @_;
 
-#	print "---------------------------\n";
-#	print "config file:\n";
-#	print "---------------------------\n";
-#	print Dumper $config_file;
-#	print "^^^^^^^^^^^^^^^^^^^^^^^^^^^\n";
-
 	open( my $fh, "<", $config_file) or die "can't open $config_file - you've done something horribly wrong! $!\n";
 
 	my @tokens = (
@@ -97,46 +91,18 @@ sub read_config {
 		qw(TK_STRING),	[qw(["'] (?:[^"]+|"")* ["'])],
 		qw(TK_STRING), q([^\s;:{}\(\)\@\n\r\#]+),
 		qw(config), sub {
-			print "got an additional config file $_[1]\n";
+			print STDERR "got an additional config file $_[1]\n";
 		},
 		qw(ERROR  .*), sub {
 			die qq!can\'t analyze: "$_[1]"!;
 		},
 	);
-#		qw(COMMENT), qw( \#.*\n* ),
-#		qw(TK_STRING),	qw(\S+),
-#			COMMENT		#.*\n*
-
-
-#	print "FileSync::SyncDiff::Config->read_config() - Turning trace on\n";
-#	Parse::Lex->trace;  # Class method
-#	print "FileSync::SyncDiff::Config->read_config() - Trace is enabled\n";
-
-	#print Dumper $self;
-
-##	print Dumper \@tokens;
-##	print "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n";
 
 	my $lexer = Parse::Lex->new(@tokens);
-	#$lexer->from($fh);
-
-##	print "FileSync::SyncDiff::Config->read_config() - Made it past adding the tokens\n";
-
-	#bless $lexer, "Parse::Lex";
 
 	$self->{lexer} = \$lexer;
 
-	#my $new_lexer = $self->{lexer};
-
-	#bless $new_lexer, "Parse::Lex";
-
-##	print "-------------------------------------\n";
-##	print Dumper $self;
-##	print "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n";
-
-	print "Tokenization of DATA:\n";
-
-##	print "Reference: ". ref( ${ $self->{lexer} } ) ."\n";
+	print STDERR "Tokenization of DATA:\n";
 
 	my $parser = FileSync::SyncDiff::ParseCfg->new();
 
@@ -151,40 +117,16 @@ sub read_config {
 	$parser->YYData->{DATA} = $file_data;
 	$lexer->from( $parser->YYData->{DATA} );
 
-##	print "FileSync::SyncDiff::Config->read_config() - About to run the parser...\n";
-
 	$parser->YYParse(
 				YYlex => $callback_ref_lex,
 				YYerror => \&perl_error,
 			);
-			#	YYdebug => 0x1F,
-
-##	print "FileSync::SyncDiff::Config->read_config() - Made it past the parser\n";
-				##YYdebug => 0x1F,
-
-#	print "#########################################################\n";
-#	print Dumper \$parser;
-#	print "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n";
-
-#	my %groups = $parser->get_groups();
-#	print "#########################################################\n";
-#	print Dumper \%groups;
-#	print "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n";
-
-#	print "#########################################################\n";
-#	print Dumper \$self;
-#	print "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n";
 
 	my %config;
 
-	#print Dumper $self->config;
 	if( defined undef ){
 		%config = $self->config;
 	}
-
-#	print "#########################################################\n";
-#	print Dumper $self->config;
-#	print "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n";
 
 	my %group_temp = $parser->get_groups();
 	$config{'groups'} = \%group_temp;
@@ -192,21 +134,7 @@ sub read_config {
 	$config{'prefixes'} = \%prefixes_temp;
 	( $config{'ignore_uid'}, $config{'ignore_gid'}, $config{'ignore_mod'} ) = $parser->get_ignores();
 
-#	print "#########################################################\n";
-#	print Dumper \%config;
-#	print "---------------------------------------------------------\n";
-#	print Dumper %group_temp;
-#	print "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n";
-
-#	print "#########################################################\n";
-#	print Dumper \%config;
-#	print "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n";
-
 	$self->_write_config( \%config );
-
-#	print "#########################################################\n";
-#	print Dumper $self->config;
-#	print "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n";
 } # end read_config()
 
 sub lex {
@@ -220,19 +148,9 @@ sub lex {
 		$token->text($+{str});
 	}
 
-	#return("\n", "\n") if( $token->name eq "NL" );
 	while( $token->name eq "NL" || $token->name eq "COMMENT"){
-#		print "Lexer: Line $.\t";
-#		print "Lexer: Type: ", $token->name, "\t";
-#		print "Lexer: Getstring: ". $token->getText ."\t";
-#		print "Lexer: Content:->", $token->text, "<-\n";
 		$token = ${ $self->{lexer} }->next;
 	}
-
-#	print "Lexer: Line $.\t";
-#	print "Lexer: Type: ", $token->name, "\t";
-#	print "Lexer: Getstring: ". $token->getText ."\t";
-#	print "Lexer: Content:->", $token->text, "<-\n";
 
 	return ('', undef) if ${ $self->{lexer} }->eoi;
 	return ($token->name, $token->name) if( $token->getText eq "" );
@@ -256,10 +174,6 @@ sub get_truepath {
 	if( $path =~ /^%/ ){
 		my $prefix = $path;
 		$prefix =~ s/^\%([^\%]+)\%.*$/$1/;
-
-##		print "FileSync::SyncDiff::Config->get_truepath() - prefix: ". $prefix ."\n";
-
-		#print Dumper $self->{config}->{prefixes};
 
 		my $prefix_path = $self->{config}->{prefixes}->{$prefix};
 
@@ -285,7 +199,6 @@ sub get_group_config {
 	return \%group_config;
 } # end get_group_config()
 
-#no moose;
 __PACKAGE__->meta->make_immutable;
 
 1;

@@ -253,7 +253,7 @@ sub fork_and_connect {
 						Proto => 'tcp',
 						);
 		if( ! $sock ){
-			print "Could not create socket: $!\n";
+			print STDERR "Could not create socket: $!\n";
 			next;
 		} # end skipping if the socket is broken
 
@@ -268,10 +268,10 @@ sub fork_and_connect {
 
 		my $auth_status = $self->authenticate_to( $dbref->getlocalhostname, $self->group, $self->config_options->{groups}->{ $self->group }->{key} );
 
-		print "Auth Status: $auth_status\n";
+		print STDERR "Auth Status: $auth_status\n";
 
 		if( $auth_status == 0 ){
-			print "Authentication failed for $host->{host}\n";
+			print STDERR "Authentication failed for $host->{host}\n";
 			$sock->shutdown(2);
 			next;
 		}
@@ -289,7 +289,7 @@ sub fork_and_connect {
 		# complex or a major issue.  Pass it on and let go
 		#
 
-		print "Protocol should be setup\n";
+		print STDERR "Protocol should be setup\n";
 		my $protocol_obj = $self->protocol_object();
 
 		$protocol_obj->client_run(); 
@@ -310,8 +310,8 @@ sub authenticate_to {
 
 	my $auth_status = $self->basic_send_request( %request );
 
-	print "authenticate_to status:\n";
-	print Dumper $auth_status;
+	print STDERR "authenticate_to status:\n";
+	print STDERR Dumper $auth_status;
 
 	if( $auth_status == 0 ){
 		return 1;
@@ -327,21 +327,21 @@ sub request_protocol_versions {
 		'operation'	=> 'request_protocol_versions',
 	);
 
-	print "Going to request Protocol Versions:\n";
+	print STDERR "Going to request Protocol Versions:\n";
 
 	my $versions = $self->basic_send_request( %request );
 
-	print "Got Back Version:\n";
-	print Dumper $versions;
+	print STDERR "Got Back Version:\n";
+	print STDERR Dumper $versions;
 
 	my $highest_proto_supported = "1.99";
 	my $proto_to_use = 0;
 
 	foreach my $ver ( @{$versions} ){
-		print "Version: ". $ver ."\n";
+		print STDERR "Version: ". $ver ."\n";
 
 		if( ! looks_like_number($ver) ){
-			print "*** $ver is not a version number\n";
+			print STDERR "*** $ver is not a version number\n";
 			next;
 		}
 
@@ -351,7 +351,7 @@ sub request_protocol_versions {
 			$ver >= $proto_to_use
 		){
 			$proto_to_use = $ver;
-			print "Currently selected Protocol Version: ". $ver ."\n";
+			print STDERR "Currently selected Protocol Version: ". $ver ."\n";
 		}
 	} # end foreach $ver
 
@@ -416,8 +416,8 @@ sub basic_send_request {
 
 	chomp( $line );
 
-	print "Basic send receive line back:\n";
-	print Dumper $line;
+	print STDERR "Basic send receive line back:\n";
+	print STDERR Dumper $line;
 
 	if( $line eq "0" ){
 		return 0;
@@ -425,8 +425,8 @@ sub basic_send_request {
 
 	my $response = decode_json( $line );
 
-	print Dumper $response;
-	print "Ref: ". ref( $response ). "\n";
+	print STDERR Dumper $response;
+	print STDERR "Ref: ". ref( $response ). "\n";
 
 	if( ref( $response ) eq "ARRAY" ){
 		return $response;
@@ -447,8 +447,6 @@ sub basic_send_request {
 	return $response;
 } # end send_request()
 
-#no moose;
 __PACKAGE__->meta->make_immutable;
-#__PACKAGE__->meta->make_immutable(inline_constructor => 0,);
 
 1;

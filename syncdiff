@@ -57,8 +57,8 @@ use Data::Dumper;
 $main::VERSION = '0.01';
 
 sub display_help {
-	print "Right now, there is no helping anyone.\n";
-	print "If you are running this you had better be John 'Warthog9' Hawley\n";
+	print STDOUT "Right now, there is no helping anyone.\n";
+	print STDOUT "If you are running this you had better be John 'Warthog9' Hawley\n";
 }
 
 #
@@ -80,12 +80,12 @@ GetOptions (
 		"h|?|help"	=> \$get_help,
 	   );
 
-print "Config File: ". $config_file ."\n";
-print "Run as Server? ". $run_as_server ."\n";
-print "Get Version? ". $get_version ."\n";
+print STDOUT "Config File: ". $config_file ."\n";
+print STDOUT "Run as Server? ". $run_as_server ."\n";
+print STDOUT "Get Version? ". $get_version ."\n";
 
 if( $get_version ){
-	print "Version: ". $main::VERSION ."\n";
+	print STDOUT "Version: ". $main::VERSION ."\n";
 	exit(0);
 }
 
@@ -101,12 +101,6 @@ if( $get_help ){
 if( ! defined $config_file ){
 	$config_file = "syncdiff.cfg";
 }
-
-#print "---------------------------\n";
-#print "config file:\n";
-#print "---------------------------\n";
-#print Dumper $config_file;
-#print "^^^^^^^^^^^^^^^^^^^^^^^^^^^\n";
 
 my $config = FileSync::SyncDiff::Config->new();
 
@@ -133,10 +127,8 @@ if( $run_as_server ){
 	exit(0);
 }
 
-#print Dumper $config->config;
-
 foreach $group_name ( keys %{ $config->config->{groups} } ){
-	print "Main client loop - group: ". $group_name ."\n";
+	print STDOUT "Main client loop - group: ". $group_name ."\n";
 
 	foreach $base ( @{ $config->config->{groups}->{$group_name}->{patterns} } ){
 
@@ -145,7 +137,3 @@ foreach $group_name ( keys %{ $config->config->{groups} } ){
 		$client->fork_and_connect();
 	} # end base foreach
 } # end group_name foreach
-
-#my $config = FileSync::SyncDiff::Config->new();
-#
-#$config->read_config('csync2.cfg');
