@@ -47,6 +47,7 @@ use FileSync::SyncDiff::DB;
 use FileSync::SyncDiff::File;
 use FileSync::SyncDiff::Server;
 use FileSync::SyncDiff::Client;
+use FileSync::SyncDiff::Log;
 
 # Debugging includes
 use Data::Dumper;
@@ -80,10 +81,6 @@ GetOptions (
 		"h|?|help"	=> \$get_help,
 	   );
 
-print STDOUT "Config File: ". $config_file ."\n";
-print STDOUT "Run as Server? ". $run_as_server ."\n";
-print STDOUT "Get Version? ". $get_version ."\n";
-
 if( $get_version ){
 	print STDOUT "Version: ". $main::VERSION ."\n";
 	exit(0);
@@ -103,14 +100,19 @@ if( ! defined $config_file ){
 }
 
 my $config = FileSync::SyncDiff::Config->new();
-
 $config->read_config( $config_file );
+
+my $log = FileSync::SyncDiff::Log->new( config => $config );
+
+$log->info('Config File: %s', $config_file);
+$log->info('Run as Server? %s',$run_as_server);
+$log->info('Get Version? %s', $get_version);
 
 # End opening and parsing the config file
 # 	$config now exists and can be passed around
 # 	as needed
 
-my $dbconnection = FileSync::SyncDiff::DB->new( config => $config );
+my $dbconnection = FileSync::SyncDiff::DB->new( config => $config, log => $log );
 
 $dbconnection->file( "psync.sqlite" );
 
@@ -122,17 +124,17 @@ if( $run_only_scan ){
 } # end if( $run_only_scan )
 
 if( $run_as_server ){
-	my $server = FileSync::SyncDiff::Server->new( config => $config->config, dbref => $dbconnection );
+	my $server = FileSync::SyncDiff::Server->new( config => $config->config, dbref => $dbconnection, log => $log );
 	$server->run();
 	exit(0);
 }
 
 foreach $group_name ( keys %{ $config->config->{groups} } ){
-	print STDOUT "Main client loop - group: ". $group_name ."\n";
+	$log->info("Main client loop - group: %s", $group_name);
 
 	foreach $base ( @{ $config->config->{groups}->{$group_name}->{patterns} } ){
 
-		my $client = FileSync::SyncDiff::Client->new( config_options => $config->get_group_config( $group_name ), group => $group_name, groupbase => $base, groupbase_path => $config->get_truepath( $base ), dbref => $dbconnection );
+		my $client = FileSync::SyncDiff::Client->new( config_options => $config->get_group_config( $group_name ), group => $group_name, groupbase => $base, groupbase_path => $config->get_truepath( $base ), dbref => $dbconnection, log => $log );
 
 		$client->fork_and_connect();
 	} # end base foreach

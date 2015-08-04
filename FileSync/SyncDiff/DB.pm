@@ -41,6 +41,7 @@ extends qw(FileSync::SyncDiff::Forkable);
 use FileSync::SyncDiff::File;
 use FileSync::SyncDiff::Util;
 use FileSync::SyncDiff::Config;
+use FileSync::SyncDiff::Log;
 
 #
 # Needed for dealing with DB stuff
@@ -81,6 +82,15 @@ has 'config' => (
 		isa	=> 'FileSync::SyncDiff::Config',
 		required => 1,
 		);
+
+has 'log' => (
+		is => 'rw',
+		isa => 'FileSync::SyncDiff::Log',
+		default => sub {
+			my $self = shift;
+			return FileSync::SyncDiff::Log->new( config => $self->config );
+		}
+);
 
 # End variables
 

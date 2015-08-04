@@ -42,6 +42,7 @@ extends 'FileSync::SyncDiff::Forkable', 'FileSync::SyncDiff::SenderReceiver';
 use FileSync::SyncDiff::File;
 use FileSync::SyncDiff::Util;
 use FileSync::SyncDiff::Protocol::v1;
+use FileSync::SyncDiff::Log;
 
 #
 # Other Includes
@@ -106,7 +107,14 @@ has 'remote_hostname' => (
 		isa	=> 'Str',
 		required => 0,
 		);
-
+has 'log' => (
+		is => 'rw',
+		isa => 'FileSync::SyncDiff::Log',
+		default => sub {
+			my $self = shift;
+			return FileSync::SyncDiff::Log->new( config => $self->config );
+		}
+);
 
 
 # End variables
