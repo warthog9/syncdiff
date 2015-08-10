@@ -35,6 +35,8 @@ use Moose;
 
 extends 'FileSync::SyncDiff::Forkable';
 
+use FileSync::SyncDiff::Log;
+
 #
 # Other Includes
 #
@@ -98,6 +100,14 @@ has 'response' => (
     lazy     => 1,
     writer   => '_response',
     default  => sub { {} },
+);
+
+has 'log' => (
+        is => 'rw',
+        isa => 'FileSync::SyncDiff::Log',
+        default => sub {
+            return FileSync::SyncDiff::Log->new();
+        }
 );
 
 #
@@ -184,9 +194,8 @@ sub _forward {
             ReuseAddr => 1
             );
     };
-    if ($@) {
-        print STDERR "Could not create socket $@";
-        return undef;
+    if ( !$listener ) {
+        $self->log->fatal("Could not create socket %s", $!);
     }
 
     $self->middleware->{socket} = $listener;
@@ -201,9 +210,8 @@ sub _forward {
             Proto => $self->server->{proto},
             );
     };
-    if( !$server || $@ ){
-        print STDERR "Could not connect to syncdiff server: $@\n";
-        return undef;
+    if( !$server ){
+        $self->log->fatal("Could not connect to syncdiff server: %s", $!);
     }
 
     $self->server->{socket} = $server;

@@ -52,6 +52,15 @@ has 'lexer' => (
 ); # end config
 ##	writer	=> '_write_config',
 
+has 'log' => (
+		is => 'rw',
+		isa => 'FileSync::SyncDiff::Log',
+		default => sub {
+			my $self = shift;
+			return FileSync::SyncDiff::Log->new();
+		}
+);
+
 sub read_config {
 	my ($self, $config_file) = @_;
 
@@ -91,10 +100,10 @@ sub read_config {
 		qw(TK_STRING),	[qw(["'] (?:[^"]+|"")* ["'])],
 		qw(TK_STRING), q([^\s;:{}\(\)\@\n\r\#]+),
 		qw(config), sub {
-			print STDERR "got an additional config file $_[1]\n";
+			$self->log->debug("got an additional config file %s", $_[1]);
 		},
 		qw(ERROR  .*), sub {
-			die qq!can\'t analyze: "$_[1]"!;
+			$self->log->fatal("can not analyze: %s", $_[1]);
 		},
 	);
 
@@ -102,7 +111,7 @@ sub read_config {
 
 	$self->{lexer} = \$lexer;
 
-	print STDERR "Tokenization of DATA:\n";
+	$self->log->debug("Tokenization of DATA:");
 
 	my $parser = FileSync::SyncDiff::ParseCfg->new();
 

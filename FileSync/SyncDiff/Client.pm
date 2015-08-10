@@ -116,6 +116,7 @@ has 'protocol_object' => (
 		isa	=> 'Object',
 		);
 
+# Logger system
 has 'log' => (
 		is => 'rw',
 		isa => 'FileSync::SyncDiff::Log',
@@ -176,14 +177,13 @@ sub fork_and_connect {
 	my( $self ) = @_;
 	my $dbref = $self->dbref();
 
-	print "Client::fork_and_connect - ". $self->group ." - ". $self->groupbase ."\n";
-	print Dumper $self->config_options;
+	$self->log->debug("Client::fork_and_connect - %s - %s",$self->group,$self->groupbase);
+	$self->log->debug("Config options: %s",Dumper($self->config_options));
 
-	print "Client::fork_and_connect - path\n";
-	print Dumper $self->groupbase_path;
+	$self->log->debug("Client::fork_and_connect - path %s", Dumper($self->groupbase_path));
 
 	if( ! -e $self->groupbase_path ){
-		die( "Path: ". $self->groupbase_path ." does *NOT* exist in group ". $self->group ." - sadly dying now.\n" );
+		$self->log->fatal( "Path: %s does *NOT* exist in group %s  - sadly dying now", $self->groupbase_path, $self->group );
 	}
 
 	#
@@ -211,9 +211,9 @@ sub fork_and_connect {
 	#
 
 	foreach my $host ( @{ $self->config_options->{groups}->{ $self->group }->{host} } ){
-		print "Host: ". $host->{host} ."\n";
+		$self->log->debug("Host: %s", $host->{host});
 		my $ip = $self->dbref->gethostbyname( $host->{host} );
-		print "Ip: ". $ip ."\n";
+		$self->log->debug("Ip: %s", $ip);
 		my $port =  $host->{port} || '7070';
 
 		if ( $host->{proto} && $host->{proto} =~ /^http[s]?$/ ) {
@@ -232,12 +232,12 @@ sub fork_and_connect {
 
 			my $response = $ua->post($uri,$params);
 			if ( $response->is_success ) {
-				print STDOUT "Success response from $host->{host}\n";
+				$self->log->info("Success response from %s", $host->{host});
 			}
 			else {
 				my $msg = $response->message;
-				print STDERR "Failed response from $host->{host}: $msg\n";
-				return undef;
+				$self->log->error("Failed response from %s : %s", $host->{host}, $msg);
+				next;
 			}
 
 			my $json = decode_json($response->decoded_content);
@@ -257,13 +257,15 @@ sub fork_and_connect {
 		chroot( $self->groupbase_path );
 		chdir("/");
 
-		my $sock = IO::Socket::INET->new(
-						PeerAddr => $ip,
-						PeerPort => $port,
-						Proto => 'tcp',
-						);
+		my $sock = eval {
+			IO::Socket::INET->new(
+				PeerAddr => $ip,
+				PeerPort => $port,
+				Proto => 'tcp',
+				);
+		};
 		if( ! $sock ){
-			print STDERR "Could not create socket: $!\n";
+			$self->log->warn("Could not create socket: %s", $!);
 			next;
 		} # end skipping if the socket is broken
 
@@ -278,10 +280,10 @@ sub fork_and_connect {
 
 		my $auth_status = $self->authenticate_to( $dbref->getlocalhostname, $self->group, $self->config_options->{groups}->{ $self->group }->{key} );
 
-		print STDERR "Auth Status: $auth_status\n";
+		$self->log->debug("Auth Status: %s",$auth_status);
 
 		if( $auth_status == 0 ){
-			print STDERR "Authentication failed for $host->{host}\n";
+			$self->log->info("Authentication failed for %s", $host->{host});
 			$sock->shutdown(2);
 			next;
 		}
@@ -299,7 +301,7 @@ sub fork_and_connect {
 		# complex or a major issue.  Pass it on and let go
 		#
 
-		print STDERR "Protocol should be setup\n";
+		$self->log->debug("Protocol should be setup");
 		my $protocol_obj = $self->protocol_object();
 
 		$protocol_obj->client_run(); 
@@ -320,8 +322,7 @@ sub authenticate_to {
 
 	my $auth_status = $self->basic_send_request( %request );
 
-	print STDERR "authenticate_to status:\n";
-	print STDERR Dumper $auth_status;
+	$self->log->debug("authenticate_to status: %s",Dumper ($auth_status));
 
 	if( $auth_status == 0 ){
 		return 1;
@@ -337,21 +338,20 @@ sub request_protocol_versions {
 		'operation'	=> 'request_protocol_versions',
 	);
 
-	print STDERR "Going to request Protocol Versions:\n";
+	$self->log->debug("Going to request Protocol Versions:");
 
 	my $versions = $self->basic_send_request( %request );
 
-	print STDERR "Got Back Version:\n";
-	print STDERR Dumper $versions;
+	$self->log->debug("Got Back Version: %s",Dumper ($versions));
 
 	my $highest_proto_supported = "1.99";
 	my $proto_to_use = 0;
 
 	foreach my $ver ( @{$versions} ){
-		print STDERR "Version: ". $ver ."\n";
+		$self->log->debug("Version: %s", $ver);
 
 		if( ! looks_like_number($ver) ){
-			print STDERR "*** $ver is not a version number\n";
+			$self->log->warn("*** %s is not a version number",$ver);
 			next;
 		}
 
@@ -361,11 +361,11 @@ sub request_protocol_versions {
 			$ver >= $proto_to_use
 		){
 			$proto_to_use = $ver;
-			print STDERR "Currently selected Protocol Version: ". $ver ."\n";
+			$self->log->debug("Currently selected Protocol Version: %s", $ver);
 		}
 	} # end foreach $ver
 
-	$self->protocol_version( $proto_to_use );	
+	$self->protocol_version( $proto_to_use );
 
 	my $protocol_obj;
 
@@ -374,7 +374,7 @@ sub request_protocol_versions {
 		&&
 		$proto_to_use < 2.0
 	){
-		$protocol_obj = FileSync::SyncDiff::Protocol::v1->new( socket => $self->socket, version => $proto_to_use, dbref => $self->dbref, group => $self->group, hostname => $host, groupbase => $self->groupbase );
+		$protocol_obj = FileSync::SyncDiff::Protocol::v1->new( socket => $self->socket, version => $proto_to_use, dbref => $self->dbref, group => $self->group, hostname => $host, groupbase => $self->groupbase, log => $self->log );
 	}
 
 	$protocol_obj->setup();
@@ -426,8 +426,8 @@ sub basic_send_request {
 
 	chomp( $line );
 
-	print STDERR "Basic send receive line back:\n";
-	print STDERR Dumper $line;
+	$self->log->debug("Basic send receive line back:");
+	$self->log->debug(Dumper $line);
 
 	if( $line eq "0" ){
 		return 0;
@@ -435,8 +435,8 @@ sub basic_send_request {
 
 	my $response = decode_json( $line );
 
-	print STDERR Dumper $response;
-	print STDERR "Ref: ". ref( $response ). "\n";
+	$self->log->debug('Response: %s', Dumper ($response));
+	$self->log->debug("Ref: %s", ref( $response ));
 
 	if( ref( $response ) eq "ARRAY" ){
 		return $response;

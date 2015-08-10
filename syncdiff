@@ -119,7 +119,7 @@ $dbconnection->file( "psync.sqlite" );
 $dbconnection->connect_and_fork();
 
 if( $run_only_scan ){
-	FileSync::SyncDiff::Scanner->full_scan( $config, $dbconnection );
+	FileSync::SyncDiff::Scanner->full_scan( $config, $dbconnection, $log );
 	exit(0);
 } # end if( $run_only_scan )
 

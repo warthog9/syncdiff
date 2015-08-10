@@ -33,6 +33,8 @@ use Sys::Hostname;
 use File::FnMatch qw(:fnmatch);    # import everything
 use URI;
 
+use FileSync::SyncDiff::Log;
+
 my $autonum = 0;
 
 my %groups;
@@ -46,6 +48,8 @@ my $curprefix = undef;
 my $ignore_uid = 0;
 my $ignore_gid = 0;
 my $ignore_mod = 0;
+
+my $log = FileSync::SyncDiff::Log->new();
 
 sub get_groups {
 	return %groups;
@@ -92,7 +96,7 @@ sub add_host {
 	my ($host, $port) = (undef,undef);
 	my $proto = eval { $uri->scheme() };
 	if ($@) {
-		print STDERR "Invalid protocol name \n";
+		$log->warn("Invalid protocol name");
 	}
 
 	if ( $proto ) {
@@ -101,7 +105,7 @@ sub add_host {
 			$port = $uri->port();
 		};
 		if ($@) {
-			print STDERR "Invalid host format $@ \n";
+			$log->warn("Invalid host format %s",$@);
 			return;
 		}
 	}
@@ -138,7 +142,7 @@ sub set_key {
 	my( $key ) = @_;
 
 	if( $groups{$curgroup}->{'key'} ne "" ){
-		print STDERR "*** Multiple keys found for group '". $curgroup ."' - last one wins!  You are warned. ***\n";
+		$log->info("*** Multiple keys found for group %s - last one wins!  You are warned. ***", $curgroup);
 	}
 
 	if(
@@ -152,12 +156,10 @@ sub set_key {
 		close (FILE);  
 	}
 
-	print STDERR "Key is: $key\n";
+	$log->debug("Key is: %s",$key);
 
 	if( length($key) < 32 ){
-		print STDERR "*** WARNING ***\n";
-		print STDERR "\tKey for group:". $curgroup ." is less than 32 charaters.  Security is at risk\n";
-		print STDERR "***************\n";
+		$log->warn("Key for group: %s is less than 32 charaters.  Security is at risk", $curgroup);
 	}
 	$groups{$curgroup}->{'key'} = $key;
 } # end set_key()
@@ -202,10 +204,8 @@ sub set_auto {
 		return;
 	}
 
-	print STDERR "*** WARNING ***\n";
-	print STDERR "\tUnknown auto resolution mechanism: ". $auto_resolve ."\n";
-	print STDERR "\tIgnoring option\n";
-	print STDERR "***************\n";
+	$log->warn("Unknown auto resolution mechanism: %s", $auto_resolve);
+	$log->warn("Ignoring option");
 } # end set_auto()
 
 sub set_bak_dir {
@@ -218,10 +218,8 @@ sub set_bak_gen {
 	my ($backup_generations) = @_;
 
 	if( $backup_generations =~ /[^0-9]+/ ){
-		print STDERR "*** WARNING ***\n";
-		print STDERR "\tUnknown number of Backup Generations:  ". $backup_generations ."\n";
-		print STDERR "\tIgnoring option\n";
-		print STDERR "***************\n";
+		$log->warn("Unknown number of Backup Generations: %s", $backup_generations);
+		$log->warn("Ignoring option");
 		return;
 	}
 
@@ -230,28 +228,28 @@ sub set_bak_gen {
 
 sub check_group {
 	if( length( $groups{$curgroup}->{'key'} ) <= 0 ){
-		die("Config error: groups must have a key.\n");
+		$log->fatal("Config error: groups must have a key.");
 	}
 } # end check_group()
 
 sub new_action {
-	print STDERR "function: new_action()\n";
+	$log->debug("function: new_action()");
 } # end new_action()
 
 sub add_action_pattern {
-	print STDERR "function: add_action_pattern()\n";
+	$log->debug("function: add_action_pattern()");
 } # end add_action_pattern
 
 sub add_action_exec {
-	print STDERR "function: add_action_exec()\n";
+	$log->debug("function: add_action_exec()");
 } # end add_action_exec()
 
 sub set_action_logfile {
-	print STDERR "function: set_action_logfile()\n";
+	$log->debug("function: set_action_logfile()");
 } # end set_action_logfile()
 
 sub set_action_dolocal {
-	print STDERR "function: set_action_dolocal()\n";
+	$log->debug("function: set_action_dolocal()");
 } # end set_action_dolocal
 
 sub new_prefix {
@@ -266,7 +264,7 @@ sub new_prefix_entry {
 	my( $pattern, $path ) = @_;
 
 	if( $path !~ /^\// ){
-		print STDERR "\t Prefix Path: '". $path ."' is not an absolute path.\n";
+		$log->warn("Prefix Path: '%s' is not an absolute path", $path);
 	}
 
 	my $hostname = hostname;
@@ -294,7 +292,7 @@ sub new_ignore {
 	} elsif( $propname eq "mod" ){
 		$ignore_mod = 1;
 	} else {
-		print STDERR "\tInvalid ignore option: '". $propname ."' - IGNORING\n";
+		$log->warn("Invalid ignore option: '%s' - IGNORING", $propname);
 	}
 } # end new_ignore()
 
@@ -307,7 +305,7 @@ sub on_cygwin_lowercase {
 } # end on_cygwin_lowercase() 
 
 sub disable_cygwin_lowercase_hack {
-	print STDERR "function: disable_cygwin_lowercase_hack()\n";
+	$log->debug("function: disable_cygwin_lowercase_hack()");
 }
 
 %} # end of the code section

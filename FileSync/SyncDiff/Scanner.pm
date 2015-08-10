@@ -40,6 +40,7 @@ use FileSync::SyncDiff::Config;
 use FileSync::SyncDiff::File;
 use FileSync::SyncDiff::DB;
 use FileSync::SyncDiff::Util;
+use FileSync::SyncDiff::Log;
 
 #
 # Needed for the file scanning
@@ -94,6 +95,15 @@ has 'scan_count' => (
 	isa		=> 'Int',
 	);
 
+# Logger system
+has 'log' => (
+		is => 'rw',
+		isa => 'FileSync::SyncDiff::Log',
+		default => sub {
+			return FileSync::SyncDiff::Log->new();
+		}
+);
+
 #
 # End 
 #
@@ -110,24 +120,26 @@ sub fork_and_scan {
 override 'run_child' => sub {
 	my( $self ) = @_;
 
-	print STDERR "About to chroot\n";
+	$self->log->debug("About to chroot");
 
 	chroot( $self->groupbase );
 	chdir( "/" );
 
-	print STDERR "chrooted\n";
+	$self->log->debug("chrooted");
 
 	$self->scan();
 
 }; # end run_child();
 
 sub full_scan {
-	my ( $self, $config, $dbconnection ) = @_;
+	my ( $self, $config, $dbconnection, $log ) = @_;
+
+	$log ||= $self->log;
 
 	my %running_scanners = ();
 
 	foreach my $group_name ( keys %{ $config->config->{groups} } ){
-		print STDERR "run only scan group: ". $group_name ."\n";
+		$log->debug("run only scan group: %s", $group_name);
 		
 		my $scanner = undef;
 
@@ -141,11 +153,11 @@ sub full_scan {
 	my $kid;
 
 	foreach my $group_name (keys %running_scanners) {
-		print STDERR "Group Wait: $group_name\n";
+		$log->debug("Group Wait: %s",$group_name);
 		foreach my $base_path ( keys %{ $running_scanners{$group_name} } ){
-			print STDERR "\tBase Path: $base_path\n";
+			$log->debug("Base Path: %s", $base_path);
 			my $pid = $running_scanners{$group_name}{$base_path}->pid();
-			print STDERR "\t\tPid: $pid\n";
+			$log->debug("Pid: %s",$pid);
 			$kid = waitpid( $pid, 0); 
 		}
 	}
@@ -165,7 +177,7 @@ sub scan {
 	#
 	# Totally an Invader Zim reference
 	#
-	print STDERR "I'm SCANNING I'm SCANNING! - $$\n";
+	$self->log->debug("I'm SCANNING I'm SCANNING! - %s", $$);
 
 	$self->create_transaction_id();
 
@@ -189,7 +201,7 @@ sub scan {
 
 	foreach my $fileobj ( @{ $filelist } ){
 		if( ! -e $fileobj->filepath ){
-			print STDERR "File ". $fileobj->filepath ." was deleted\n";
+			$self->log->debug("File %s was deleted", $fileobj->filepath );
 			$fileobj->last_transaction( $self->current_transaction_id );
 			$self->dbref->mark_deleted( $fileobj);
 		}
@@ -207,7 +219,7 @@ sub find_wanted {
 		$self->scan_count(1);
 	}
 
-	print STDERR "File Found: ". $self->scan_count ." - ". $found_file ."\n";
+	$self->log->info("File Found: %s - %s", $self->scan_count, $found_file);
 
 	$self->scan_count( $self->scan_count + 1 );
 
@@ -224,7 +236,7 @@ sub find_wanted {
 		$found_file_obj->checksum_file();
 		$found_file_obj->last_transaction( $self->current_transaction_id );
 
-		print STDERR "Found File Object:\n";
+		$self->log->debug("Found File Object:");
 
 		$self->dbref->add_file( $found_file_obj );
 		return;
@@ -234,9 +246,9 @@ sub find_wanted {
 	$lookup_file_obj->from_hash( $lookup_file );
 
 
-	print STDERR "Comparison status: ". ( $lookup_file_obj == $found_file_obj ) ."\n";
+	$self->log->debug("Comparison status: %s", ( $lookup_file_obj == $found_file_obj ? 1 : 0 ));
 	if( $lookup_file_obj == $found_file_obj ){
-		print STDERR "*** Objects are identical\n";
+		$self->log->debug("*** Objects are identical");
 		return;
 	}
 
@@ -259,7 +271,7 @@ sub create_transaction_id {
 
 	my $retval = $self->dbref->new_transaction_id( $self->group, $transaction_id );
 
-	print STDERR "create_transaction_id retval: ". $retval ."\n";
+	$self->log->debug("create_transaction_id retval: %s", $retval);
 
 	$self->current_transaction_id( $transaction_id );
 	return;

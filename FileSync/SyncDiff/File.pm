@@ -39,6 +39,7 @@ use Moose;
 
 use FileSync::SyncDiff::Util;
 use FileSync::SyncDiff::DB;
+use FileSync::SyncDiff::Log;
 
 #
 # Needed for the file scanning
@@ -153,6 +154,15 @@ has 'deleted' => (
 		default => '0',
 		);
 
+# Logger system
+has 'log' => (
+		is => 'rw',
+		isa => 'FileSync::SyncDiff::Log',
+		default => sub {
+			return FileSync::SyncDiff::Log->new();
+		}
+);
+
 #
 # End Local Variables
 #
@@ -172,12 +182,14 @@ sub _overload_comparison {
 	my( $left, $right, $options ) = @_;
 
 	for my $attr ( $left->meta->get_all_attributes ) {
-		print "COMPARISON: ". $attr->name ."\n";
+		# TODO: Required attributes should be labeled
+		next if ( $attr->type_constraint->name eq 'FileSync::SyncDiff::Log' );
+		$left->log->debug("COMPARISON: %s", $attr->name);
 
 		if( $attr->name eq "checksum" ){
-			print "State of options: ". ( defined $options ) ."\n";
+			$left->log->debug("State of options: %s", ( defined $options ? 1 : 0 ));
 			if( ref $options eq ref {} ){
-				print "State of options->{checksum}: ". ( ! defined $options->{checksum} ) ."\n";
+				$left->log->debug("State of options->{checksum}: %s", ( ! defined $options->{checksum} ) );
 			}
 		}
 
@@ -206,8 +218,8 @@ sub _overload_comparison {
 			next;
 		}
 
-		print STDERR "Left value: ". $left->_get_file_attr_value( $attr->name ) ."\n";
-		print STDERR "Right value: ". $right->_get_file_attr_value( $attr->name ) ."\n";
+		$left->log->debug("Left value: %s", $left->_get_file_attr_value( $attr->name ));
+		$left->log->debug("Right value: %s", $right->_get_file_attr_value( $attr->name ));
 
 		if(
 			"". $left->_get_file_attr_value( $attr->name ) .""
@@ -302,7 +314,7 @@ sub checksum_file {
 		return;
 	}
 
-	print "Checksumming: |". $self->filepath."|\n";
+	$self->log->debug("Checksumming: | %s |", $self->filepath);
 	open(FILE, $self->filepath ) or die "ERROR. $_ could not be opened: $!";
 	# This is critical to prevent ulcers and create correct SHA256 checksums
 	binmode(FILE);
@@ -314,7 +326,7 @@ sub checksum_file {
 
 	my $return = "sha256:". $checksum;
 
-	print "Checksum: returning |$return|\n";
+	$self->log->debug("Checksum: returning | %s |", $return);
 
 	$self->checksum( $return );
 } # end checksum_file()

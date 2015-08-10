@@ -89,13 +89,17 @@ my $TIMEOUT = 300;
 sub recv_loop {
 	my ( $self ) = @_;
 
-	my $sock = new IO::Socket::INET (
-				LocalPort => '7070',
-				Proto => 'tcp',
-				Listen => 1,
-				Reuse => 1,
-				);
-	die "Could not create socket: $!\n" unless $sock;
+	my $sock = eval {
+		IO::Socket::INET->new (
+			LocalPort => '7070',
+			Proto => 'tcp',
+			Listen => 1,
+			Reuse => 1,
+			);
+	};
+	if ( !$sock ) {
+		$self->log->fatal("Could not create socket: %s", $!);
+	}
 
 	while( my $new_sock = $sock->accept() ){
 		my $child;
@@ -121,12 +125,12 @@ sub process_request {
 	my $socket = $self->socket;
 
 	while(1){
-		print STDERR "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n";
-		print STDERR "SR - process_request - Top of While loop\n";
-		print STDERR "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n";
+		$self->log->debug("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+		$self->log->debug("SR - process_request - Top of While loop");
+		$self->log->debug("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
 		$line = $self->plain_receiver( {} );
 
-		print STDERR "Debugging Recieved line\n";
+		$self->log->debug("Debugging Recieved line");
 		$self->print_debug( $line );
 
 		if( ! defined $line ){
@@ -161,7 +165,7 @@ sub send_request {
 sub plain_send {
 	my( $self, $request ) = @_;
 
-	print STDERR "plain_send - length: ". length( $request ) ."\n";
+	$self->log->debug("plain_send - length: %s", length( $request ));
 
 	if(
 		$request eq "0"
@@ -183,7 +187,7 @@ sub plain_send {
 	){
 		my $checksum = sha256_base64($request);
 
-		print STDERR "SR - Scalar recieving - checksum: $checksum\n";
+		$self->log->debug("SR - Scalar recieving - checksum: %s",$checksum);
 
 		my %temp_request = (
 			SCALAR	=> $request,
@@ -193,12 +197,11 @@ sub plain_send {
 	}
 
 	my ($package, $filename, $line) = caller;
-	print STDERR "Called from:\n\tPackage: $package\n\tFilename: $filename\n\tLine: $line\n";
 	$self->print_debug( $request );
 
 	my $json = encode_json( $request );
 
-	print STDERR "Length of json: ". length( $json ) ."\n";
+	$self->log->debug("Length of json: %s", length( $json ));
 
 	my $socket = $self->socket;
 
@@ -228,7 +231,7 @@ sub plain_receiver {
 	eval {
 		alarm($TIMEOUT);
 		while( $read_line = <$socket> ){
-			print STDERR "reading: $read_line\n";
+			$self->log->debug("reading: %s",$read_line);
 			if( defined $read_line  ){
 				chomp( $read_line );
 				if( 
@@ -264,7 +267,7 @@ sub plain_receiver {
 		return undef;
 	}
 
-	print STDERR "SR - Checking line that we've gotten:\n";
+	$self->log->debug("SR - Checking line that we've gotten:");
 	$self->print_debug( $line );
 
 	chomp( $line );
@@ -273,7 +276,7 @@ sub plain_receiver {
 		return 0;
 	}
 
-	print STDERR "Length of recieved line: ". length( $line ) ."\n";
+	$self->log->debug("Length of recieved line: ", length( $line ));
 
 	return $line if( $self->short_rev eq "yes" );
 
@@ -292,9 +295,9 @@ sub plain_receiver {
 		my $checksum = sha256_base64($response->{SCALAR});
 
 		if( $checksum ne $response->{checksum} ){
-			print STDERR "*** Checksum's don't match\n";
-			print STDERR "*** Calculated: $checksum\n";
-			print STDERR "*** Transfered: ". $response->{checksum} ."\n";
+			$self->log->debug("*** Checksum's don't match");
+			$self->log->debug("*** Calculated: %s",$checksum);
+			$self->log->debug("*** Transfered: %s", $response->{checksum});
 		}
 
 		return $response->{SCALAR};
@@ -315,7 +318,7 @@ sub print_debug {
 	my $temp_delta = undef;
 	my $temp_sig = undef;
 
-	print STDERR "SenderReceiver Debug:\n";
+	$self->log->debug("SenderReceiver Debug:");
 
 	if( ref($request) eq 'HASH' ){
 		if(
@@ -342,11 +345,11 @@ sub print_debug {
 		&&
 		length( $request ) > 400
 	){
-		print STDERR substr( $request, 0, 400 ) ."\n";
+		$self->log->debug(substr( $request, 0, 400 ));
 		return;
 	}
 
-	print STDERR Dumper $temp_req;
+	$self->log->debug(Dumper $temp_req);
 
 	if( defined $temp_delta ){
 		$request->{delta} = $temp_delta;

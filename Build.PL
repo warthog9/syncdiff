@@ -44,6 +44,8 @@ my $builder = $class->new(
         'File::Rdiff'               => 1.0,
         'JSON::XS'                  => 2.27,
         'URI'                       => 1.67,
+        'Plack'                     => 1.0037,
+        'IO::Socket::Forwarder'     => 0.02,
     },
     meta_merge     => {
         resources => {

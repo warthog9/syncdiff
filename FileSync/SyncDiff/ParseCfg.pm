@@ -50,6 +50,8 @@ use Sys::Hostname;
 use File::FnMatch qw(:fnmatch);    # import everything
 use URI;
 
+use FileSync::SyncDiff::Log;
+
 my $autonum = 0;
 
 my %groups;
@@ -63,6 +65,8 @@ my $curprefix = undef;
 my $ignore_uid = 0;
 my $ignore_gid = 0;
 my $ignore_mod = 0;
+
+my $log = FileSync::SyncDiff::Log->new();
 
 sub get_groups {
 	return %groups;
@@ -109,7 +113,7 @@ sub add_host {
 	my ($host, $port) = (undef,undef);
 	my $proto = eval { $uri->scheme() };
 	if ($@) {
-		print STDERR "Invalid protocol name \n";
+		$log->warn("Invalid protocol name");
 	}
 
 	if ( $proto ) {
@@ -118,7 +122,7 @@ sub add_host {
 			$port = $uri->port();
 		};
 		if ($@) {
-			print STDERR "Invalid host format $@ \n";
+			$log->warn("Invalid host format %s",$@);
 			return;
 		}
 	}
@@ -155,7 +159,7 @@ sub set_key {
 	my( $key ) = @_;
 
 	if( $groups{$curgroup}->{'key'} ne "" ){
-		print STDERR "*** Multiple keys found for group '". $curgroup ."' - last one wins!  You are warned. ***\n";
+		$log->info("*** Multiple keys found for group %s - last one wins!  You are warned. ***", $curgroup);
 	}
 
 	if(
@@ -169,12 +173,10 @@ sub set_key {
 		close (FILE);  
 	}
 
-	print STDERR "Key is: $key\n";
+	$log->debug("Key is: %s",$key);
 
 	if( length($key) < 32 ){
-		print STDERR "*** WARNING ***\n";
-		print STDERR "\tKey for group:". $curgroup ." is less than 32 charaters.  Security is at risk\n";
-		print STDERR "***************\n";
+		$log->warn("Key for group: %s is less than 32 charaters.  Security is at risk", $curgroup);
 	}
 	$groups{$curgroup}->{'key'} = $key;
 } # end set_key()
@@ -219,10 +221,8 @@ sub set_auto {
 		return;
 	}
 
-	print STDERR "*** WARNING ***\n";
-	print STDERR "\tUnknown auto resolution mechanism: ". $auto_resolve ."\n";
-	print STDERR "\tIgnoring option\n";
-	print STDERR "***************\n";
+	$log->warn("Unknown auto resolution mechanism: %s", $auto_resolve);
+	$log->warn("Ignoring option");
 } # end set_auto()
 
 sub set_bak_dir {
@@ -235,10 +235,8 @@ sub set_bak_gen {
 	my ($backup_generations) = @_;
 
 	if( $backup_generations =~ /[^0-9]+/ ){
-		print STDERR "*** WARNING ***\n";
-		print STDERR "\tUnknown number of Backup Generations:  ". $backup_generations ."\n";
-		print STDERR "\tIgnoring option\n";
-		print STDERR "***************\n";
+		$log->warn("Unknown number of Backup Generations: %s", $backup_generations);
+		$log->warn("Ignoring option");
 		return;
 	}
 
@@ -247,28 +245,28 @@ sub set_bak_gen {
 
 sub check_group {
 	if( length( $groups{$curgroup}->{'key'} ) <= 0 ){
-		die("Config error: groups must have a key.\n");
+		$log->fatal("Config error: groups must have a key.");
 	}
 } # end check_group()
 
 sub new_action {
-	print STDERR "function: new_action()\n";
+	$log->debug("function: new_action()");
 } # end new_action()
 
 sub add_action_pattern {
-	print STDERR "function: add_action_pattern()\n";
+	$log->debug("function: add_action_pattern()");
 } # end add_action_pattern
 
 sub add_action_exec {
-	print STDERR "function: add_action_exec()\n";
+	$log->debug("function: add_action_exec()");
 } # end add_action_exec()
 
 sub set_action_logfile {
-	print STDERR "function: set_action_logfile()\n";
+	$log->debug("function: set_action_logfile()");
 } # end set_action_logfile()
 
 sub set_action_dolocal {
-	print STDERR "function: set_action_dolocal()\n";
+	$log->debug("function: set_action_dolocal()");
 } # end set_action_dolocal
 
 sub new_prefix {
@@ -283,7 +281,7 @@ sub new_prefix_entry {
 	my( $pattern, $path ) = @_;
 
 	if( $path !~ /^\// ){
-		print STDERR "\t Prefix Path: '". $path ."' is not an absolute path.\n";
+		$log->warn("Prefix Path: '%s' is not an absolute path", $path);
 	}
 
 	my $hostname = hostname;
@@ -311,7 +309,7 @@ sub new_ignore {
 	} elsif( $propname eq "mod" ){
 		$ignore_mod = 1;
 	} else {
-		print STDERR "\tInvalid ignore option: '". $propname ."' - IGNORING\n";
+		$log->warn("Invalid ignore option: '%s' - IGNORING", $propname);
 	}
 } # end new_ignore()
 
@@ -324,7 +322,7 @@ sub on_cygwin_lowercase {
 } # end on_cygwin_lowercase() 
 
 sub disable_cygwin_lowercase_hack {
-	print STDERR "function: disable_cygwin_lowercase_hack()\n";
+	$log->debug("function: disable_cygwin_lowercase_hack()");
 }
 
 
@@ -827,13 +825,13 @@ sub new {
 	[#Rule 4
 		 '@1-2', 0,
 sub
-#line 338 "syncdiff_cfg_parser.y"
+#line 336 "syncdiff_cfg_parser.y"
 { new_prefix($_[2]); }
 	],
 	[#Rule 5
 		 'block', 6,
 sub
-#line 340 "syncdiff_cfg_parser.y"
+#line 338 "syncdiff_cfg_parser.y"
 { }
 	],
 	[#Rule 6
@@ -842,7 +840,7 @@ sub
 	[#Rule 7
 		 'block', 2,
 sub
-#line 343 "syncdiff_cfg_parser.y"
+#line 341 "syncdiff_cfg_parser.y"
 { disable_cygwin_lowercase_hack(); }
 	],
 	[#Rule 8
@@ -851,7 +849,7 @@ sub
 	[#Rule 9
 		 'ignore_list', 2,
 sub
-#line 349 "syncdiff_cfg_parser.y"
+#line 347 "syncdiff_cfg_parser.y"
 { new_ignore($_[1]); }
 	],
 	[#Rule 10
@@ -860,25 +858,25 @@ sub
 	[#Rule 11
 		 'prefix_list', 6,
 sub
-#line 355 "syncdiff_cfg_parser.y"
+#line 353 "syncdiff_cfg_parser.y"
 { new_prefix_entry($_[3], on_cygwin_lowercase($_[5])); }
 	],
 	[#Rule 12
 		 'block_header', 1,
 sub
-#line 360 "syncdiff_cfg_parser.y"
+#line 358 "syncdiff_cfg_parser.y"
 { new_group(0);  }
 	],
 	[#Rule 13
 		 'block_header', 2,
 sub
-#line 362 "syncdiff_cfg_parser.y"
+#line 360 "syncdiff_cfg_parser.y"
 { new_group($_[2]); }
 	],
 	[#Rule 14
 		 'block_body', 3,
 sub
-#line 367 "syncdiff_cfg_parser.y"
+#line 365 "syncdiff_cfg_parser.y"
 { check_group(); }
 	],
 	[#Rule 15
@@ -905,25 +903,25 @@ sub
 	[#Rule 22
 		 'stmt', 2,
 sub
-#line 382 "syncdiff_cfg_parser.y"
+#line 380 "syncdiff_cfg_parser.y"
 { set_key($_[2]); }
 	],
 	[#Rule 23
 		 'stmt', 2,
 sub
-#line 384 "syncdiff_cfg_parser.y"
+#line 382 "syncdiff_cfg_parser.y"
 { set_auto($_[2]); }
 	],
 	[#Rule 24
 		 'stmt', 2,
 sub
-#line 386 "syncdiff_cfg_parser.y"
+#line 384 "syncdiff_cfg_parser.y"
 { set_bak_dir($_[2]); }
 	],
 	[#Rule 25
 		 'stmt', 2,
 sub
-#line 388 "syncdiff_cfg_parser.y"
+#line 386 "syncdiff_cfg_parser.y"
 { set_bak_gen($_[2]); }
 	],
 	[#Rule 26
@@ -932,13 +930,13 @@ sub
 	[#Rule 27
 		 'host_list', 2,
 sub
-#line 394 "syncdiff_cfg_parser.y"
+#line 392 "syncdiff_cfg_parser.y"
 { add_host($_[2], $_[2], 0); }
 	],
 	[#Rule 28
 		 'host_list', 4,
 sub
-#line 396 "syncdiff_cfg_parser.y"
+#line 394 "syncdiff_cfg_parser.y"
 { add_host($_[2], $_[4], 0); }
 	],
 	[#Rule 29
@@ -950,13 +948,13 @@ sub
 	[#Rule 31
 		 'host_list_slaves', 2,
 sub
-#line 403 "syncdiff_cfg_parser.y"
+#line 401 "syncdiff_cfg_parser.y"
 { add_host($_[2], $_[2], 1); }
 	],
 	[#Rule 32
 		 'host_list_slaves', 4,
 sub
-#line 405 "syncdiff_cfg_parser.y"
+#line 403 "syncdiff_cfg_parser.y"
 { add_host($_[2], $_[4], 1); }
 	],
 	[#Rule 33
@@ -965,7 +963,7 @@ sub
 	[#Rule 34
 		 'excl_list', 2,
 sub
-#line 411 "syncdiff_cfg_parser.y"
+#line 409 "syncdiff_cfg_parser.y"
 { add_patt(0, on_cygwin_lowercase($_[2])); }
 	],
 	[#Rule 35
@@ -974,7 +972,7 @@ sub
 	[#Rule 36
 		 'incl_list', 2,
 sub
-#line 417 "syncdiff_cfg_parser.y"
+#line 415 "syncdiff_cfg_parser.y"
 { add_patt(1, on_cygwin_lowercase($_[2])); }
 	],
 	[#Rule 37
@@ -983,13 +981,13 @@ sub
 	[#Rule 38
 		 'comp_list', 2,
 sub
-#line 423 "syncdiff_cfg_parser.y"
+#line 421 "syncdiff_cfg_parser.y"
 { add_patt(2, on_cygwin_lowercase($_[2])); }
 	],
 	[#Rule 39
 		 '@2-1', 0,
 sub
-#line 428 "syncdiff_cfg_parser.y"
+#line 426 "syncdiff_cfg_parser.y"
 { new_action(); }
 	],
 	[#Rule 40
@@ -1010,13 +1008,13 @@ sub
 	[#Rule 45
 		 'action_stmt', 2,
 sub
-#line 442 "syncdiff_cfg_parser.y"
+#line 440 "syncdiff_cfg_parser.y"
 { set_action_logfile($_[2]); }
 	],
 	[#Rule 46
 		 'action_stmt', 1,
 sub
-#line 444 "syncdiff_cfg_parser.y"
+#line 442 "syncdiff_cfg_parser.y"
 { set_action_dolocal(); }
 	],
 	[#Rule 47
@@ -1025,7 +1023,7 @@ sub
 	[#Rule 48
 		 'action_pattern_list', 2,
 sub
-#line 450 "syncdiff_cfg_parser.y"
+#line 448 "syncdiff_cfg_parser.y"
 { add_action_pattern(on_cygwin_lowercase($_[2])); }
 	],
 	[#Rule 49
@@ -1034,7 +1032,7 @@ sub
 	[#Rule 50
 		 'action_exec_list', 2,
 sub
-#line 456 "syncdiff_cfg_parser.y"
+#line 454 "syncdiff_cfg_parser.y"
 { add_action_exec($_[2]); }
 	]
 ],
@@ -1042,7 +1040,7 @@ sub
     bless($self,$class);
 }
 
-#line 459 "syncdiff_cfg_parser.y"
+#line 457 "syncdiff_cfg_parser.y"
 
 
 

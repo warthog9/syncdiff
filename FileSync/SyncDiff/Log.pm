@@ -55,7 +55,7 @@ use constant {
                 mode     => "append",
                 utf8     => 1,
             ),
-            format   => qq{%d [%p] %m{chomp} %T %n}
+            format   => qq{%d [%p] %m{chomp} %n}
         },
         $WARN   => {
             appender => Log::Log4perl::Appender->new(
@@ -90,35 +90,44 @@ use constant {
 has 'config' => (
     is       => 'rw',
     isa      => 'FileSync::SyncDiff::Config',
-    required => 1,
+    required => 0,
 );
 
 has '_logger' => (
     is       => 'ro',
     init_arg => undef,
-    isa      => 'Log::Log4perl::Logger',
-    default  => sub {
-        return get_logger(__PACKAGE__);
-    }
+    isa      => 'HashRef',
+    builder  => '_build_logger'
 );
 
-sub _init_logger {
-    my ( $self, $level ) = @_;
+sub _build_logger {
+    my ($self) = @_;
 
-    my $format   = &LOG_LEVEL_MAP->{$level}{format};
-    my $appender = &LOG_LEVEL_MAP->{$level}{appender};
+    my $log_info = {};
+    for my $level ( ($INFO, $DEBUG, $WARN, $ERROR, $FATAL) ) {
+        my $format   = &LOG_LEVEL_MAP->{$level}{format};
+        my $appender = &LOG_LEVEL_MAP->{$level}{appender};
+        my $layout   = Log::Log4perl::Layout::PatternLayout->new( $format );
 
-    my $layout = Log::Log4perl::Layout::PatternLayout->new( $format );
-    $appender->layout($layout);
+        $appender->layout($layout);
+        $log_info->{$level}{logger} = get_logger( __PACKAGE__ . $level );
 
-    $self->_logger->additivity(0);
-    $self->_logger->add_appender($appender);
-    $self->_logger->level($level);
+        ($log_info->{$level}{logger})->additivity(0);
+        ($log_info->{$level}{logger})->add_appender($appender);
+        ($log_info->{$level}{logger})->level($level);
+    }
 
-    return $format;
+    return $log_info;
 }
-# Messages could be in sprintf format or
-# as simple text
+
+sub _log {
+    my ($self, $level) = @_;
+
+    return $self->_logger->{$level}{logger};
+}
+
+# Messages should be in sprintf format or
+# as a simple text
 sub _compose_msg {
     my ( $self, $format, @values ) = @_;
     my $msg = '';
@@ -136,9 +145,7 @@ sub debug {
     my ( $self, $format, @values ) = @_;
     my $msg = $self->_compose_msg($format, @values);
 
-    $self->_logger->reset;
-    $self->_init_logger($DEBUG);
-    $self->_logger->debug($msg);
+    $self->_log($DEBUG)->debug($msg);
 
     return $msg;
 }
@@ -147,9 +154,7 @@ sub info {
     my ( $self, $format, @values ) = @_;
     my $msg = $self->_compose_msg($format, @values);
 
-    $self->_logger->reset;
-    $self->_init_logger($INFO);
-    $self->_logger->info($msg);
+    $self->_log($INFO)->info($msg);
 
     return $msg;
 }
@@ -158,9 +163,7 @@ sub warn {
     my ( $self, $format, @values ) = @_;
     my $msg = $self->_compose_msg($format, @values);
 
-    $self->_logger->reset;
-    $self->_init_logger($WARN);
-    $self->_logger->logcluck($msg);
+    $self->_log($WARN)->logcarp($msg);
 
     return $msg;
 }
@@ -169,20 +172,16 @@ sub error {
     my ( $self, $format, @values ) = @_;
     my $msg = $self->_compose_msg($format, @values);
 
-    $self->_logger->reset;
-    $self->_init_logger($ERROR);
-    $self->_logger->logcroak($msg);
+    $self->_log($ERROR)->error_warn($msg);
 
     return $msg;
 }
 
 sub fatal {
     my ( $self, $format, @values ) = @_;
-   my $msg = $self->_compose_msg($format, @values);
+    my $msg = $self->_compose_msg($format, @values);
 
-    $self->_logger->reset;
-    $self->_init_logger($FATAL);
-    $self->_logger->logconfess($msg);
+    $self->_log($FATAL)->logcroak($msg);
 
     return $msg;
 }

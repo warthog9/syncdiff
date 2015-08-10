@@ -107,6 +107,8 @@ has 'remote_hostname' => (
 		isa	=> 'Str',
 		required => 0,
 		);
+
+# Logger system
 has 'log' => (
 		is => 'rw',
 		isa => 'FileSync::SyncDiff::Log',
@@ -132,13 +134,7 @@ sub run {
 override 'run_child' => sub {
 	my( $self ) = @_;
 
-	eval {
-		$self->recv_loop();
-	};
-	if ($@) {
-		print STDERR $@;
-		exit(0);
-	}
+	$self->recv_loop();
 }; # end run_child()
 
 sub _process_request {
@@ -154,7 +150,7 @@ sub _process_request {
 	};
 
 	if( ! $json_success ){
-		print STDERR "JSON was malformed, ignoring - ". $recv_line ."\n";
+		$self->log->error("JSON was malformed, ignoring - %s", $recv_line);
 		return undef;
 	}
 
@@ -171,14 +167,14 @@ sub _process_request {
 	){
 		my $auth_status = $self->_check_authentication( $response->{hostname}, $response->{group}, $response->{key} );
 
-		print STDERR "_process_request Auth Status: $auth_status\n";
+		$self->log->debug("_process_request Auth Status: %s", $auth_status);
 
 		if( $auth_status == 0 ){
-			print STDERR "Socket Die, Auth really failed\n";
+			$self->log->debug("Socket Die, Auth really failed");
 			return "SOCKDIE";
 		}
 
-		print STDERR "Going to return successful Authentication\n";
+		$self->log->info("Going to return successful Authentication");
 		return 0;
 	}
 	if(
@@ -196,8 +192,8 @@ sub _process_request {
 		&&
 		$response->{request_version} < 2
 	){
-		print STDERR "Primary protocol version 1 found\n";
-		print STDERR Dumper $self->groupbase;
+		$self->log->debug("Primary protocol version 1 found");
+		$self->log->debug("GroupBase: %s",$self->groupbase);
 		$self->proto(
 			FileSync::SyncDiff::Protocol::v1->new(
 				socket => $self->socket,
@@ -206,6 +202,7 @@ sub _process_request {
 				group => $self->group,
 				hostname => $self->remote_hostname,
 				groupbase => $self->groupbase,
+				log => $self->log,
 			)
 		);
 		return $self->proto->getVersion();
@@ -222,15 +219,15 @@ sub _check_authentication {
 
 	my $group_key = $config->{groups}->{ $group }->{key};
 
-	print STDERR "Got: Group |$group| Key |$key|\n";
-	print STDERR "We have |$group_key|\n";
+	$self->log->debug("Got: Group |%s| Key |%s|",$group,$key);
+	$self->log->debug("We have |%s|",$group_key);
 
 	if( $key eq $group_key ){
-		print STDERR "Auth succeeded\n";
+		$self->log->info("Auth succeeded");
 		$self->group( $group );
 		$self->remote_hostname( $remote_hostname );
 
-		print STDERR Dumper $config->{groups}->{ $group };
+		$self->log->debug(Dumper $config->{groups}->{ $group });
 		$self->groupbase( $config->{groups}->{ $group }->{patterns}[0] );
 		return 1;
 	}

@@ -83,6 +83,7 @@ has 'config' => (
 		required => 1,
 		);
 
+# Logger system
 has 'log' => (
 		is => 'rw',
 		isa => 'FileSync::SyncDiff::Log',
@@ -115,7 +116,7 @@ sub connect {
 		||
 		$file eq ""
 	){
-		die("Database file not defined\n");
+		$self->log->fatal("Database file not defined");
 	}
 
 	my $dbh = DBI->connect(
@@ -140,7 +141,7 @@ sub connect {
 	my $sth = $dbh->table_info("", "%", 'transactions', "TABLE");
 	if ( ! $sth->fetch) {
 		# doesn't exist
-		print STDERR "*** New Database, initializing and doing a file scan\n";
+		$self->log->info("*** New Database, initializing and doing a file scan");
 
 		$self->create_database();
 	}
@@ -212,8 +213,8 @@ sub process_request {
 	my $request = decode_json( $line );
 
 	if( ! defined $request->{operation} ){
-		print STDERR "FileSync::SyncDiff::DB->process_request() - No Operation specified!\n";
-		print STDERR Dumper $request;
+		$self->log->debug("FileSync::SyncDiff::DB->process_request() - No Operation specified!");
+		$self->log->debug(Dumper $request);
 		return;
 	}
 
@@ -313,9 +314,9 @@ sub create_database {
 
 	my $transaction_id = sha256_hex( hostname() ."-". $$ ."-". time() );
 
-	print STDERR Dumper $self->config->config;
+	$self->log->debug('Config: %s', Dumper ($self->config->config));
 	foreach my $group ( sort keys %{ $self->config->config->{groups} } ){
-		print STDERR "Group: $group\n";
+		$self->log->debug("Group: %s", $group);
 		$self->_new_transaction_id( $group, $transaction_id );
 	}
 } # end create_database()
@@ -370,7 +371,7 @@ sub new_connection {
 		$add_connection->execute( $info->{host}, $info->{port}, $info->{auth_key}, $info->{syncbase} ) || die $DBI::errstr;
 	};
 	if ($@) {
-		print STDERR "Error on add new connection: $@";
+		$self->log->error("Error on add new connection: %s,", $@);
 	}
 
 	return $res;
@@ -398,7 +399,7 @@ sub clean_connections {
 		$del_connection->execute( map { keys %{$_} }@params ) || die $DBI::errstr;
 	};
 	if ($@) {
-		print STDERR "Error on clean up connections: $@";
+		$self->log->error("Error on clean up connections: %s", $@);
 	}
 
 	return $res;
@@ -407,9 +408,15 @@ sub clean_connections {
 sub is_exists_connection {
 	my ($self,$info) = @_;
 	my $dbh = $self->dbh;
+	my $sth = undef;
 
-	my $sth = $dbh->prepare("SELECT * FROM connections WHERE host = ? AND auth_key = ? AND syncbase = ?");
-	$sth->execute( $info->{host}, $info->{auth_key}, $info->{syncbase} ) || die $DBI::errstr;
+	eval {
+		$sth = $dbh->prepare("SELECT * FROM connections WHERE host = ? AND auth_key = ? AND syncbase = ?");
+		$sth->execute( $info->{host}, $info->{auth_key}, $info->{syncbase} ) || die $DBI::errstr;
+	};
+	if ($@) {
+		$self->log->error("Error with working on connections: %s", $@);
+	}
 
 	my $row_ref = $sth->fetchall_hashref('id');
 	if( scalar ( keys %$row_ref ) != 0 ){
@@ -449,7 +456,7 @@ sub _get_transaction_id {
 	$sth->execute( $transactionid, $group );
 
 	if ( $sth->err ){
-		die "ERROR! return code: ". $sth->err . " error msg: " . $sth->errstr . "\n";
+		$self->log->fatal("ERROR! return code: %s error msg: %s", $sth->err, $sth->errstr);
 	}
 
 	my $row_ref = $sth->fetchall_hashref('id');
@@ -717,7 +724,7 @@ sub _mark_deleted {
 		);
 
 	if ( $mark_deleted_sth->err ){
-		die "ERROR! return code: ". $mark_deleted_sth->err . " error msg: " . $mark_deleted_sth->errstr . "\n";
+		$self->log->fatal("ERROR! return code: %s error msg: %s", $mark_deleted_sth->err, $mark_deleted_sth->errstr);
 	}
 
 	return 0;
@@ -813,12 +820,12 @@ sub current_log_position {
 		operation	=> 'current_log_position',
 		);
 
-	print STDERR "Pushing request for current log position\n";
+	$self->log->debug("Pushing request for current log position");
 
 	my $response = $self->send_request( %request );
 
-	print STDERR "Got response and it is...\n";
-	print STDERR Dumper $response;
+	$self->log->debug("Got response and it is...");
+	$self->log->debug(Dumper $response);
 	return $response;
 } # end current_log_position()
 
@@ -826,20 +833,19 @@ sub _current_log_position {
 	my( $self ) = @_;
 	my $dbh = $self->dbh;
 
-	print STDERR "Got request for current log position\n";
+	$self->log->debug("Got request for current log position");
 
 	my $get_current_transaction_id = $dbh->prepare("select id, transactionid from transactions order by id desc limit 1;");
 	$get_current_transaction_id->execute();
 
 	if ( $get_current_transaction_id->err ){
-		die "ERROR! return code: ". $get_current_transaction_id->err . " error msg: " . $get_current_transaction_id->errstr . "\n";
+		$self->log->fatal("ERROR! return code: %s error msg: %s", $get_current_transaction_id->err, $get_current_transaction_id->errstr);
 	}
 
 	my $row_ref = $get_current_transaction_id->fetchall_hashref('id');
-	print STDERR "Current Log position stuff:\n";
-	print STDERR Dumper $row_ref;
+	$self->log->debug("Current Log position stuff: %s", Dumper $row_ref);
 
-	print STDERR "How many keys *ARE* there... ". ( scalar ( keys %{$row_ref} ) ) ."\n";
+	$self->log->debug( "How many keys *ARE* there... %s", scalar ( keys %{$row_ref} ));
 	if(
 		( scalar ( keys %{$row_ref} ) ) == 0
 		||
@@ -851,8 +857,8 @@ sub _current_log_position {
 	my $id;
 
 	foreach $id ( sort keys %{$row_ref} ){
-		print STDERR "Id is: $id\n";
-		print STDERR "Hash is: ". $row_ref->{ $id }->{'transactionid'} ."\n";
+		$self->log->debug("Id is: %s", $id);
+		$self->log->debug("Hash is: %s", $row_ref->{ $id }->{'transactionid'});
 		return $row_ref->{ $id }->{'transactionid'};
 	}
 } # end _current_log_position()
@@ -880,9 +886,8 @@ sub _set_remote_log_position {
 	$sth->execute( $hostname, $transactionid, $group );
 
 	if ( $sth->err ){
-		die "ERROR! return code: ". $sth->err . " error msg: " . $sth->errstr . "\n";
+		$self->log->fatal("ERROR! return code: %s error msg: %s", $sth->err, $sth->errstr);
 	}
-
 
 	return 0;
 } # end _set_remote_log_position()
@@ -905,22 +910,21 @@ sub _get_remote_log_position {
 	my( $self, $hostname, $group ) = @_;
 	my $dbh = $self->dbh;
 
-	print STDERR "Hostname: |$hostname| | Group: |$group|\n";
+	$self->log->debug("Hostname: |%s| | Group: |%s|", $hostname, $group);
 
 	my $sql = "SELECT id, transactionid FROM servers_seen WHERE hostname=? AND `group`=? order by id desc limit 1;";
-	print STDERR "Sql: $sql\n";
+	$self->log->debug("Sql: %s", $sql);
 	my $sth = $dbh->prepare($sql);
 	$sth->execute($hostname, $group);
 
 	if ( $sth->err ){
-		die "ERROR! return code: ". $sth->err . " error msg: " . $sth->errstr . "\n";
+		$self->log->fatal("ERROR! return code: %s error msg: %s", $sth->err, $sth->errstr);
 	}
 
 	my $row_ref = $sth->fetchall_hashref('id');
-	print STDERR "Current Log position stuff:\n";
-	print STDERR Dumper $row_ref;
+	$self->log->debug("Current Log position stuff: %s", Dumper $row_ref);
 
-	print STDERR "How many keys *ARE* there... ". ( scalar ( keys %{$row_ref} ) ) ."\n";
+	$self->log->debug("How many keys *ARE* there... %s", scalar ( keys %{$row_ref} ));
 	if(
 		( scalar ( keys %{$row_ref} ) ) == 0
 		||
@@ -932,8 +936,8 @@ sub _get_remote_log_position {
 	my $id;
 
 	foreach $id ( sort keys %{$row_ref} ){
-		print STDERR "Id is: $id\n";
-		print STDERR "Hash is: ". $row_ref->{ $id }->{'transactionid'} ."\n";
+		$self->log->debug("Id is: %s", $id);
+		$self->log->debug("Hash is: %s", $row_ref->{ $id }->{'transactionid'});
 		return $row_ref->{ $id }->{'transactionid'};
 	}
 
@@ -962,7 +966,7 @@ sub _get_files_changed_since {
 	my $sth = undef; 
 	my $sql = undef;
 
-	print STDERR "Transaction status: ". $transaction_status ."\n";
+	$self->log->info("Transaction status: %s", $transaction_status);
 
 	if(
 		$transaction_status eq "0"
@@ -972,7 +976,7 @@ sub _get_files_changed_since {
 		# Transaction wasn't found for this
 		# group, lets assume we need to give it everything
 
-		print STDERR "*** Transaction not found, should just send everything\n";
+		$self->log->debug("*** Transaction not found, should just send everything");
 		$sql = "SELECT * FROM files WHERE syncgroup=?;";
 
 		$sth = $dbh->prepare($sql);
@@ -992,7 +996,7 @@ sub _get_files_changed_since {
 				." ) "
 			." ); ";
 
-		print STDERR "Sql: |$sql|\n";
+		$self->log->debug("Sql: |%s|",$sql);
 
 		$sth = $dbh->prepare($sql);
 
@@ -1000,24 +1004,25 @@ sub _get_files_changed_since {
 	}
 
 	if ( $sth->err ){
-		die "ERROR! return code: ". $sth->err . " error msg: " . $sth->errstr . "\n";
+		$self->log->fatal("ERROR! return code: %s error msg: %s", $sth->err, $sth->errstr);
 	}
 
 	my $row_ref = $sth->fetchall_hashref('id');
-	print STDERR "Files Found:\n";
-	print STDERR Dumper $row_ref;
+	$self->log->info("Files Found:");
 
 	my @return_array = ();
 	my %return_hash = ();
 	my $x = 0;
 
 	foreach my $id ( sort keys %{$row_ref} ){
-		print STDERR "Id is: $id\n";
-		print STDERR "Hash is: ". $row_ref->{ $id }->{'last_transaction'} ."\n";
+		$self->log->debug("Id is: %s",$id);
+		$self->log->debug("Hash is: %s", $row_ref->{ $id }->{'last_transaction'});
 
 		my $temp_file_obj = FileSync::SyncDiff::File->new(dbref => $self);
 
 		$temp_file_obj->from_hash( $row_ref->{ $id } );
+
+		$self->log->info("File path: %s",$temp_file_obj->filename);
 
 		my %temp_file_hash = $temp_file_obj->to_hash();
 
