@@ -46,6 +46,7 @@ my $builder = $class->new(
         'URI'                       => 1.67,
         'Plack'                     => 1.0037,
         'IO::Socket::Forwarder'     => 0.02,
+        'Log::Log4perl'             => 1.46,
     },
     meta_merge     => {
         resources => {
