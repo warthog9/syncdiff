@@ -126,8 +126,15 @@ sub _log {
     return $self->_logger->{$level}{logger};
 }
 
+#----------------------------------------------------------------------
+#** @method private _compose_msg ($self, $format, @values)
+# @brief Compose message from format and values.
 # Messages should be in sprintf format or
 # as a simple text
+# @param $format - sprintf format message
+# @param @values - values for formatting message
+# @return scalar Message
+#*
 sub _compose_msg {
     my ( $self, $format, @values ) = @_;
     my $msg = '';
@@ -141,6 +148,13 @@ sub _compose_msg {
     return $msg;
 }
 
+#----------------------------------------------------------------------
+#** @method public debug ($self, $format, @values)
+# @brief Print message with DEBUG level.
+# @param $format - sprintf format message
+# @param @values - values for formatting message
+# @return scalar Message
+#*
 sub debug {
     my ( $self, $format, @values ) = @_;
     my $msg = $self->_compose_msg($format, @values);
@@ -150,6 +164,13 @@ sub debug {
     return $msg;
 }
 
+#----------------------------------------------------------------------
+#** @method public debug ($self, $format, @values)
+# @brief Print message with INFO level.
+# @param $format - sprintf format message
+# @param @values - values for formatting message
+# @return scalar Message
+#*
 sub info {
     my ( $self, $format, @values ) = @_;
     my $msg = $self->_compose_msg($format, @values);
@@ -159,6 +180,13 @@ sub info {
     return $msg;
 }
 
+#----------------------------------------------------------------------
+#** @method public debug ($self, $format, @values)
+# @brief Print message with WARN level.
+# @param $format - sprintf format message
+# @param @values - values for formatting message
+# @return scalar Message
+#*
 sub warn {
     my ( $self, $format, @values ) = @_;
     my $msg = $self->_compose_msg($format, @values);
@@ -168,6 +196,13 @@ sub warn {
     return $msg;
 }
 
+#----------------------------------------------------------------------
+#** @method public debug ($self, $format, @values)
+# @brief Print message with ERROR level.
+# @param $format - sprintf format message
+# @param @values - values for formatting message
+# @return scalar Message
+#*
 sub error {
     my ( $self, $format, @values ) = @_;
     my $msg = $self->_compose_msg($format, @values);
@@ -177,6 +212,13 @@ sub error {
     return $msg;
 }
 
+#----------------------------------------------------------------------
+#** @method public debug ($self, $format, @values)
+# @brief Print message with FATAL level.
+# @param $format - sprintf format message
+# @param @values - values for formatting message
+# @return scalar Message
+#*
 sub fatal {
     my ( $self, $format, @values ) = @_;
     my $msg = $self->_compose_msg($format, @values);

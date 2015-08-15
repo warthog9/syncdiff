@@ -119,6 +119,14 @@ use constant {
     TRY_PORT_LIMIT    => 10000,
 };
 
+#----------------------------------------------------------------------
+#** @method public run ($self)
+# @brief Run forwarding beetween client and server
+# @return HashRef, Forwarding response
+# code - response code
+# content_type - type of content
+# content - content in appropriate format
+#*
 sub run {
     my( $self ) = @_;
     my $response = {};
@@ -160,6 +168,11 @@ override 'run_child' => sub {
     $self->_forward();
 }; # end run_child()
 
+#----------------------------------------------------------------------
+#** @method private _get_random_port ($self)
+# @brief Return a random port from FIRST_PUBLIC_PORT to MAX_PORT_NUMBER
+# @return scalar port
+#*
 sub _get_random_port {
     my ( $self ) = @_;
 
@@ -183,6 +196,11 @@ sub _get_random_port {
     return $port;
 }
 
+#----------------------------------------------------------------------
+#** @method private _forward($self)
+# @brief Create a forward connection beetween server and client
+# @return scalar, True value in success
+#*
 sub _forward {
     my ( $self ) = @_;
 
@@ -223,6 +241,11 @@ sub _forward {
     return 1;
 } # end _forward
 
+#----------------------------------------------------------------------
+#** @method private _clean_up ($self)
+# @brief Clean forward connection from DB
+# @return scalar True value in success
+#*
 sub _clean_up {
     my ( $self ) = @_;
 
