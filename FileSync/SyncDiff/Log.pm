@@ -165,7 +165,7 @@ sub debug {
 }
 
 #----------------------------------------------------------------------
-#** @method public debug ($self, $format, @values)
+#** @method public info ($self, $format, @values)
 # @brief Print message with INFO level.
 # @param $format - sprintf format message
 # @param @values - values for formatting message
@@ -181,7 +181,7 @@ sub info {
 }
 
 #----------------------------------------------------------------------
-#** @method public debug ($self, $format, @values)
+#** @method public warn ($self, $format, @values)
 # @brief Print message with WARN level.
 # @param $format - sprintf format message
 # @param @values - values for formatting message
@@ -197,7 +197,7 @@ sub warn {
 }
 
 #----------------------------------------------------------------------
-#** @method public debug ($self, $format, @values)
+#** @method public error ($self, $format, @values)
 # @brief Print message with ERROR level.
 # @param $format - sprintf format message
 # @param @values - values for formatting message
@@ -213,7 +213,7 @@ sub error {
 }
 
 #----------------------------------------------------------------------
-#** @method public debug ($self, $format, @values)
+#** @method public fatal ($self, $format, @values)
 # @brief Print message with FATAL level.
 # @param $format - sprintf format message
 # @param @values - values for formatting message
