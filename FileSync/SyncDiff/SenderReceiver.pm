@@ -89,20 +89,23 @@ my $TIMEOUT = 300;
 sub recv_loop {
 	my ( $self ) = @_;
 
-	my $sock = new IO::Socket::INET (
-				LocalPort => '7070',
-				Proto => 'tcp',
-				Listen => 1,
-				Reuse => 1,
-				);
-	die "Could not create socket: $!\n" unless $sock;
+	my $sock = eval {
+		IO::Socket::INET->new (
+			LocalPort => '7070',
+			Proto => 'tcp',
+			Listen => 1,
+			Reuse => 1,
+			);
+	};
+	if ( !$sock ) {
+		$self->log->fatal("Could not create socket: %s", $!);
+	}
 
 	while( my $new_sock = $sock->accept() ){
 		my $child;
 
 		if( ( $child = fork() ) == 0 ){
 			# child process
-			#print Dumper $new_sock;
 			$self->socket( $new_sock );
 			$self->json( new JSON::XS );
 			$self->process_request();
@@ -122,12 +125,12 @@ sub process_request {
 	my $socket = $self->socket;
 
 	while(1){
-		print "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n";
-		print "SR - process_request - Top of While loop\n";
-		print "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n";
+		$self->log->debug("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+		$self->log->debug("SR - process_request - Top of While loop");
+		$self->log->debug("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
 		$line = $self->plain_receiver( {} );
 
-		print "Debugging Recieved line\n";
+		$self->log->debug("Debugging Recieved line");
 		$self->print_debug( $line );
 
 		if( ! defined $line ){
@@ -162,7 +165,7 @@ sub send_request {
 sub plain_send {
 	my( $self, $request ) = @_;
 
-	print "plain_send - length: ". length( $request ) ."\n";
+	$self->log->debug("plain_send - length: %s", length( $request ));
 
 	if(
 		$request eq "0"
@@ -184,8 +187,8 @@ sub plain_send {
 	){
 		my $checksum = sha256_base64($request);
 
-		print "SR - Scalar recieving - checksum: $checksum\n";
-		
+		$self->log->debug("SR - Scalar recieving - checksum: %s",$checksum);
+
 		my %temp_request = (
 			SCALAR	=> $request,
 			checksum => $checksum,
@@ -194,20 +197,13 @@ sub plain_send {
 	}
 
 	my ($package, $filename, $line) = caller;
-	print "Called from:\n\tPackage: $package\n\tFilename: $filename\n\tLine: $line\n";
 	$self->print_debug( $request );
 
 	my $json = encode_json( $request );
 
-#	print "Plain Send Encoded JSON\n";
-#	print Dumper $json;
-
-	print "Length of json: ". length( $json ) ."\n";
+	$self->log->debug("Length of json: %s", length( $json ));
 
 	my $socket = $self->socket;
-
-#	print $socket "WTF BBQ\n";
-#	$socket->flush();
 
 	print $socket $json ."\n";
 	$socket->flush();
@@ -235,10 +231,9 @@ sub plain_receiver {
 	eval {
 		alarm($TIMEOUT);
 		while( $read_line = <$socket> ){
-			print "reading: $read_line\n";
+			$self->log->debug("reading: %s",$read_line);
 			if( defined $read_line  ){
 				chomp( $read_line );
-				#last if( $line ne "" );
 				if( 
 					$read_line eq "--END--\n"
 					||
@@ -268,53 +263,24 @@ sub plain_receiver {
 		return 0;
 	}; # end eval / timeout 
 
-#	} # end if/else
-
-#	print "Got Line back:\n";
-#	print Dumper $line;
-
 	if( ! defined $line ){
 		return undef;
 	}
 
-	print "SR - Checking line that we've gotten:\n";
+	$self->log->debug("SR - Checking line that we've gotten:");
 	$self->print_debug( $line );
 
-#	if( $was_json eq "1" ){
-#		return $json_req;
-#	}
-
 	chomp( $line );
-
-#	if(
-#		defined $request->{v1_operation}
-#		&&
-#		$request->{v1_operation} eq 'syncfile'
-#	){
-#		print "Raw line from syncfile:\n";
-#		print Dumper $line;
-#	}
 
 	if( $line eq "0" ){
 		return 0;
 	}
 
-	print "Length of recieved line: ". length( $line ) ."\n";
+	$self->log->debug("Length of recieved line: ", length( $line ));
 
 	return $line if( $self->short_rev eq "yes" );
 
 	my $response = decode_json( $line );
-
-	if(
-		defined $request->{v1_operation}
-		&&
-		$request->{v1_operation} eq 'syncfile'
-	){
-#		print "Response from send:\n";
-#		print Dumper $response;
-#		print "Ref: ". ref( $response ). "\n";
-#		print "^^^^^^^^^^^^^^^^^^^^^\n";
-	}
 
 	if( ref( $response ) eq "ARRAY" ){
 		return $response;
@@ -326,16 +292,12 @@ sub plain_receiver {
 
 	if( defined $response->{SCALAR} ){
 
-#		print Dumper $response;
-
 		my $checksum = sha256_base64($response->{SCALAR});
-		
-#		print "SR - SCALAR recieved - Calculated: $checksum\n";
-#		print "SR - SCALAR recieved - Transfered: ". $response->{checksum} ."\n";
+
 		if( $checksum ne $response->{checksum} ){
-			print "*** Checksum's don't match\n";
-			print "*** Calculated: $checksum\n";
-			print "*** Transfered: ". $response->{checksum} ."\n";
+			$self->log->debug("*** Checksum's don't match");
+			$self->log->debug("*** Calculated: %s",$checksum);
+			$self->log->debug("*** Transfered: %s", $response->{checksum});
 		}
 
 		return $response->{SCALAR};
@@ -351,14 +313,12 @@ sub plain_receiver {
 sub print_debug {
 	my( $self, $request ) = @_;
 
-#	print Dumper $request;
-
 	my $temp_req = $request;
 
 	my $temp_delta = undef;
 	my $temp_sig = undef;
 
-	print "SenderReceiver Debug:\n";
+	$self->log->debug("SenderReceiver Debug:");
 
 	if( ref($request) eq 'HASH' ){
 		if(
@@ -385,11 +345,11 @@ sub print_debug {
 		&&
 		length( $request ) > 400
 	){
-		print substr( $request, 0, 400 ) ."\n";
+		$self->log->debug(substr( $request, 0, 400 ));
 		return;
 	}
 
-	print Dumper $temp_req;
+	$self->log->debug(Dumper $temp_req);
 
 	if( defined $temp_delta ){
 		$request->{delta} = $temp_delta;
@@ -401,9 +361,6 @@ sub print_debug {
 	return;
 } # end print_debug()
 
-
-#no moose;
 __PACKAGE__->meta->make_immutable;
-#__PACKAGE__->meta->make_immutable(inline_constructor => 0,);
 
 1;

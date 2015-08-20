@@ -42,6 +42,7 @@ extends 'FileSync::SyncDiff::Forkable', 'FileSync::SyncDiff::SenderReceiver';
 use FileSync::SyncDiff::File;
 use FileSync::SyncDiff::Util;
 use FileSync::SyncDiff::Protocol::v1;
+use FileSync::SyncDiff::Log;
 
 #
 # Other Includes
@@ -107,6 +108,15 @@ has 'remote_hostname' => (
 		required => 0,
 		);
 
+# Logger system
+has 'log' => (
+		is => 'rw',
+		isa => 'FileSync::SyncDiff::Log',
+		default => sub {
+			my $self = shift;
+			return FileSync::SyncDiff::Log->new( config => $self->config );
+		}
+);
 
 
 # End variables
@@ -130,8 +140,6 @@ override 'run_child' => sub {
 sub _process_request {
 	my( $self, $recv_line ) = @_;
 
-#	print "Listener got: $recv_line\n";
-
 	if( ! defined $recv_line ){
 		return undef;
 	}
@@ -142,12 +150,9 @@ sub _process_request {
 	};
 
 	if( ! $json_success ){
-		print "JSON was malformed, ignoring - ". $recv_line ."\n";
+		$self->log->error("JSON was malformed, ignoring - %s", $recv_line);
 		return undef;
 	}
-
-#	print "Server - _process_request:\n";
-#	print Dumper $response;
 
 	if(
 		exists( $response->{operation} )
@@ -162,14 +167,14 @@ sub _process_request {
 	){
 		my $auth_status = $self->_check_authentication( $response->{hostname}, $response->{group}, $response->{key} );
 
-		print "_process_request Auth Status: $auth_status\n";
+		$self->log->debug("_process_request Auth Status: %s", $auth_status);
 
 		if( $auth_status == 0 ){
-			print "Socket Die, Auth really failed\n";
+			$self->log->debug("Socket Die, Auth really failed");
 			return "SOCKDIE";
 		}
 
-		print "Going to return successful Authentication\n";
+		$self->log->info("Going to return successful Authentication");
 		return 0;
 	}
 	if(
@@ -187,8 +192,8 @@ sub _process_request {
 		&&
 		$response->{request_version} < 2
 	){
-		print "Primary protocol version 1 found\n";
-		print Dumper $self->groupbase;
+		$self->log->debug("Primary protocol version 1 found");
+		$self->log->debug("GroupBase: %s",$self->groupbase);
 		$self->proto(
 			FileSync::SyncDiff::Protocol::v1->new(
 				socket => $self->socket,
@@ -197,6 +202,7 @@ sub _process_request {
 				group => $self->group,
 				hostname => $self->remote_hostname,
 				groupbase => $self->groupbase,
+				log => $self->log,
 			)
 		);
 		return $self->proto->getVersion();
@@ -211,20 +217,17 @@ sub _check_authentication {
 	my ( $self, $remote_hostname, $group, $key ) = @_;
 	my $config = $self->config;
 
-	my $group_key = $config->{groups}->{ $group }->{key};	
-#	print "--------------------------\n";
-#	print Dumper $config;
-#	print "^^^^^^^^^^^^^^^^^^^^^^^^^^\n";
+	my $group_key = $config->{groups}->{ $group }->{key};
 
-	print "Got: Group |$group| Key |$key|\n";
-	print "We have |$group_key|\n";
+	$self->log->debug("Got: Group |%s| Key |%s|",$group,$key);
+	$self->log->debug("We have |%s|",$group_key);
 
 	if( $key eq $group_key ){
-		print "Auth succeeded\n";
+		$self->log->info("Auth succeeded");
 		$self->group( $group );
 		$self->remote_hostname( $remote_hostname );
 
-		print Dumper $config->{groups}->{ $group };
+		$self->log->debug(Dumper $config->{groups}->{ $group });
 		$self->groupbase( $config->{groups}->{ $group }->{patterns}[0] );
 		return 1;
 	}
@@ -232,8 +235,6 @@ sub _check_authentication {
 	return 0;
 } # end _check_authentication()
 
-#no moose;
 __PACKAGE__->meta->make_immutable;
-#__PACKAGE__->meta->make_immutable(inline_constructor => 0,);
 
 1;

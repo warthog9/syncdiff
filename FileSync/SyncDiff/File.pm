@@ -39,6 +39,7 @@ use Moose;
 
 use FileSync::SyncDiff::Util;
 use FileSync::SyncDiff::DB;
+use FileSync::SyncDiff::Log;
 
 #
 # Needed for the file scanning
@@ -153,6 +154,15 @@ has 'deleted' => (
 		default => '0',
 		);
 
+# Logger system
+has 'log' => (
+		is => 'rw',
+		isa => 'FileSync::SyncDiff::Log',
+		default => sub {
+			return FileSync::SyncDiff::Log->new();
+		}
+);
+
 #
 # End Local Variables
 #
@@ -171,19 +181,15 @@ use overload 'eq' => \&_overload_comparison, fallback => 1;
 sub _overload_comparison {
 	my( $left, $right, $options ) = @_;
 
-#	print "*** Left:\n";
-#	print Dumper $left;
-#
-#	print "*** Right:\n";
-#	print Dumper $right;
-
 	for my $attr ( $left->meta->get_all_attributes ) {
-		print "COMPARISON: ". $attr->name ."\n";
+		# TODO: Required attributes should be labeled
+		next if ( $attr->type_constraint->name eq 'FileSync::SyncDiff::Log' );
+		$left->log->debug("COMPARISON: %s", $attr->name);
 
 		if( $attr->name eq "checksum" ){
-			print "State of options: ". ( defined $options ) ."\n";
+			$left->log->debug("State of options: %s", ( defined $options ? 1 : 0 ));
 			if( ref $options eq ref {} ){
-				print "State of options->{checksum}: ". ( ! defined $options->{checksum} ) ."\n";
+				$left->log->debug("State of options->{checksum}: %s", ( ! defined $options->{checksum} ) );
 			}
 		}
 
@@ -212,10 +218,8 @@ sub _overload_comparison {
 			next;
 		}
 
-#		print Dumper $attr->name;
-
-		print "Left value: ". $left->_get_file_attr_value( $attr->name ) ."\n";
-		print "Right value: ". $right->_get_file_attr_value( $attr->name ) ."\n";
+		$left->log->debug("Left value: %s", $left->_get_file_attr_value( $attr->name ));
+		$left->log->debug("Right value: %s", $right->_get_file_attr_value( $attr->name ));
 
 		if(
 			"". $left->_get_file_attr_value( $attr->name ) .""
@@ -284,9 +288,6 @@ sub get_file {
 		$filetype = 'dir';
 	}
 
-#	print "Username: \n";
-#	print Dumper $username;
-
 	my ( $filename, $path, $suffix ) = fileparse($file);
 	$self->filename( $filename );
 	$self->path( $path );
@@ -309,13 +310,11 @@ sub get_file {
 sub checksum_file {
 	my( $self ) = @_;
 
-	#return "dummy_value";
-
 	if( $self->filetype ne "file" ){
 		return;
 	}
 
-	print "Checksumming: |". $self->filepath."|\n";
+	$self->log->debug("Checksumming: | %s |", $self->filepath);
 	open(FILE, $self->filepath ) or die "ERROR. $_ could not be opened: $!";
 	# This is critical to prevent ulcers and create correct SHA256 checksums
 	binmode(FILE);
@@ -327,7 +326,7 @@ sub checksum_file {
 
 	my $return = "sha256:". $checksum;
 
-	print "Checksum: returning |$return|\n";
+	$self->log->debug("Checksum: returning | %s |", $return);
 
 	$self->checksum( $return );
 } # end checksum_file()
@@ -344,25 +343,13 @@ sub filepath {
 sub parse_dbrow {
 	my( $self, $db_row ) = @_;
 
-#	print "~~~ File->parse_dbrow()\n";
-#	print Dumper \$db_row;
-#	print "^^^^^^^^^^^^^^^^^^^^^^^\n";
-
 	foreach my $row ( sort keys %{ $db_row } ){
-#		print $db_row->{$row}->{last_transaction} ."\n";
-#		for my $attr ( $self->meta->get_all_attributes ) {
-#			print "**** Column ". $attr->name ." - ". $db_row->{$row}->{$attr->name} ."\n";
-#		}
 		$self->from_hash( $db_row->{$row} );
 	}
 } # end parse_dbrow()
 
 sub to_hash {
 	my( $self ) = @_;
-
-#	print "File::to_hash()\n";
-#	print Dumper $self;
-#	print "^^^^^^^^^^^^^^^\n";
 
 	my %file_hash = (
 		path		=> $self->path,
@@ -421,7 +408,6 @@ sub from_hash {
 	$self->deleted( $file_hash->{deleted} ) if( defined $file_hash->{deleted} );
 } # end from_hash()
 
-#no moose;
 __PACKAGE__->meta->make_immutable;
 
 1;

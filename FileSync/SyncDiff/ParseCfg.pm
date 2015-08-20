@@ -7,6 +7,15 @@
 #             ANY CHANGE MADE HERE WILL BE LOST !
 #
 ####################################################################
+package FileSync::SyncDiff::ParseCfg;
+use vars qw ( @ISA );
+use strict;
+
+@ISA= qw ( Parse::Yapp::Driver );
+use Parse::Yapp::Driver;
+
+#line 1 "syncdiff_cfg_parser.y"
+ # start of the code section
 
 ###########################################################################
 # Copyright (C) 2014  John 'Warthog9' Hawley                              #
@@ -36,19 +45,12 @@
 # Or, see <http://www.gnu.org/licenses/>.                                 #
 ###########################################################################
 
-package FileSync::SyncDiff::ParseCfg;
-use vars qw ( @ISA );
-use strict;
-
-@ISA= qw ( Parse::Yapp::Driver );
-use Parse::Yapp::Driver;
-
-#line 1 "psync_cfg_parser.y"
- # start of the code section
-
 use Data::Dumper;
 use Sys::Hostname;
 use File::FnMatch qw(:fnmatch);    # import everything
+use URI;
+
+use FileSync::SyncDiff::Log;
 
 my $autonum = 0;
 
@@ -64,6 +66,8 @@ my $ignore_uid = 0;
 my $ignore_gid = 0;
 my $ignore_mod = 0;
 
+my $log = FileSync::SyncDiff::Log->new();
+
 sub get_groups {
 	return %groups;
 }
@@ -78,9 +82,6 @@ sub get_ignores {
 
 sub new_group {
 	my ($name) = @_;
-#	print "function: new_group()\n";
-#
-#	print "\tnew_group - name: ". $name ."\n";
 
 	if( $name eq "" ){
 		$name = "group_". $autonum;
@@ -96,42 +97,51 @@ sub add_host {
 	my ($hostname) = @_;
 	my $local_hostname = hostname;
 
-#	print "function: add_host()\n";
-#
-#	print "\tadd_host: ". $hostname ."\n";
-
 	$hostname = lc($hostname);
 	$local_hostname = lc($local_hostname);
 
 	if( $hostname eq $local_hostname){
-		#print "\t~~ Found ourselves\n";
 		return;
 	} 
 
-	if(
-		$groups{$curgroup}->{'host'} == undef
-		||
-		$groups{$curgroup}->{'host'} eq ""
-	){
-		my @temparray = ();
-		$groups{$curgroup}->{'host'} = \@temparray;
+	if( $groups{$curgroup}->{'host'} ){
+		$groups{$curgroup}->{'host'} = \();
+		return;
 	}
 
-#	print Dumper \@_;
+	my $uri = URI->new($hostname);
+	my ($host, $port) = (undef,undef);
+	my $proto = eval { $uri->scheme() };
+	if ($@) {
+		$log->warn("Invalid protocol name");
+	}
 
-	my @temparray = ( $hostname, );
+	if ( $proto ) {
+		eval {
+			$host = $uri->host();
+			$port = $uri->port();
+		};
+		if ($@) {
+			$log->warn("Invalid host format %s",$@);
+			return;
+		}
+	}
+	else {
+		$host = $hostname;
+		$port = 7070;
+	}
 
-#	print Dumper \@temparray;
-#	print Dumper $groups{$curgroup}->{'host'};
+	my @uri_info = ( {
+		host  => $host,
+		port  => $port,
+		proto => $proto,
+	} );
 
-	push( @{ $groups{$curgroup}->{'host'} }, $hostname);
+	push( @{ $groups{$curgroup}->{'host'} }, @uri_info);
 } # end add_host
 
 sub add_patt {
 	my($flat, $pattern) = @_;
-
-#	print "function: add_patt()\n";
-#	print "\tadd_patt - pattern: ". $pattern ."\n";
 
 	if(
 		$groups{$curgroup}->{'patterns'} == undef
@@ -147,10 +157,9 @@ sub add_patt {
 
 sub set_key {
 	my( $key ) = @_;
-#	print "function: set_key()\n";
 
 	if( $groups{$curgroup}->{'key'} ne "" ){
-		print "*** Multiple keys found for group '". $curgroup ."' - last one wins!  You are warned. ***\n";
+		$log->info("*** Multiple keys found for group %s - last one wins!  You are warned. ***", $curgroup);
 	}
 
 	if(
@@ -164,19 +173,16 @@ sub set_key {
 		close (FILE);  
 	}
 
-	print "Key is: $key\n";
+	$log->debug("Key is: %s",$key);
 
 	if( length($key) < 32 ){
-		print "*** WARNING ***\n";
-		print "\tKey for group:". $curgroup ." is less than 32 charaters.  Security is at risk\n";
-		print "***************\n";
+		$log->warn("Key for group: %s is less than 32 charaters.  Security is at risk", $curgroup);
 	}
 	$groups{$curgroup}->{'key'} = $key;
 } # end set_key()
 
 sub set_auto {
 	my ( $auto_resolve ) = @_;
-#	print "function: set_auto()\n";
 
 	$auto_resolve = lc( $auto_resolve );
 
@@ -215,28 +221,22 @@ sub set_auto {
 		return;
 	}
 
-	print "*** WARNING ***\n";
-	print "\tUnknown auto resolution mechanism: ". $auto_resolve ."\n";
-	print "\tIgnoring option\n";
-	print "***************\n";
+	$log->warn("Unknown auto resolution mechanism: %s", $auto_resolve);
+	$log->warn("Ignoring option");
 } # end set_auto()
 
 sub set_bak_dir {
 	my ($back_dir) = @_;
-#	print "function: set_bak_dir()\n";
 
 	$groups{$curgroup}->{'back_dir'} = $back_dir;
 } # end set_bak_dir();
 
 sub set_bak_gen {
 	my ($backup_generations) = @_;
-#	print "function: set_bak_gen()\n";
 
 	if( $backup_generations =~ /[^0-9]+/ ){
-		print "*** WARNING ***\n";
-		print "\tUnknown number of Backup Generations:  ". $backup_generations ."\n";
-		print "\tIgnoring option\n";
-		print "***************\n";
+		$log->warn("Unknown number of Backup Generations: %s", $backup_generations);
+		$log->warn("Ignoring option");
 		return;
 	}
 
@@ -244,37 +244,33 @@ sub set_bak_gen {
 } # end set_back_gen()
 
 sub check_group {
-#	print "function: check_group()\n";
-
 	if( length( $groups{$curgroup}->{'key'} ) <= 0 ){
-		die("Config error: groups must have a key.\n");
+		$log->fatal("Config error: groups must have a key.");
 	}
 } # end check_group()
 
 sub new_action {
-	print "function: new_action()\n";
+	$log->debug("function: new_action()");
 } # end new_action()
 
 sub add_action_pattern {
-	print "function: add_action_pattern()\n";
+	$log->debug("function: add_action_pattern()");
 } # end add_action_pattern
 
 sub add_action_exec {
-	print "function: add_action_exec()\n";
+	$log->debug("function: add_action_exec()");
 } # end add_action_exec()
 
 sub set_action_logfile {
-	print "function: set_action_logfile()\n";
+	$log->debug("function: set_action_logfile()");
 } # end set_action_logfile()
 
 sub set_action_dolocal {
-	print "function: set_action_dolocal()\n";
+	$log->debug("function: set_action_dolocal()");
 } # end set_action_dolocal
 
 sub new_prefix {
 	my( $pname ) = @_;
-
-#	print "function: new_prefix: $pname\n";
 
 	$curprefix = $pname;
 
@@ -283,10 +279,9 @@ sub new_prefix {
 
 sub new_prefix_entry {
 	my( $pattern, $path ) = @_;
-#	print "function: new_prefix_entry()\n";
 
 	if( $path !~ /^\// ){
-		print "\t Prefix Path: '". $path ."' is not an absolute path.\n";
+		$log->warn("Prefix Path: '%s' is not an absolute path", $path);
 	}
 
 	my $hostname = hostname;
@@ -306,7 +301,6 @@ sub new_prefix_entry {
 
 sub new_ignore {
 	my( $propname ) = @_;
-#	print "function: new_ignore()\n";
 
 	if( $propname eq "uid" ){
 		$ignore_uid = 1;
@@ -315,23 +309,20 @@ sub new_ignore {
 	} elsif( $propname eq "mod" ){
 		$ignore_mod = 1;
 	} else {
-		print "\tInvalid ignore option: '". $propname ."' - IGNORING\n";
+		$log->warn("Invalid ignore option: '%s' - IGNORING", $propname);
 	}
 } # end new_ignore()
 
 sub on_cygwin_lowercase {
 	my( $string ) = @_;
-#	print "function: on_cygwin_lowercase()\n";
 
 	lc( $string );
-
-#	print "on_cygwin_loewrcase: ". $string ."\n";
 
 	return $string;
 } # end on_cygwin_lowercase() 
 
 sub disable_cygwin_lowercase_hack {
-	print "function: disable_cygwin_lowercase_hack()\n";
+	$log->debug("function: disable_cygwin_lowercase_hack()");
 }
 
 
@@ -834,13 +825,13 @@ sub new {
 	[#Rule 4
 		 '@1-2', 0,
 sub
-#line 316 "psync_cfg_parser.y"
+#line 336 "syncdiff_cfg_parser.y"
 { new_prefix($_[2]); }
 	],
 	[#Rule 5
 		 'block', 6,
 sub
-#line 318 "psync_cfg_parser.y"
+#line 338 "syncdiff_cfg_parser.y"
 { }
 	],
 	[#Rule 6
@@ -849,7 +840,7 @@ sub
 	[#Rule 7
 		 'block', 2,
 sub
-#line 321 "psync_cfg_parser.y"
+#line 341 "syncdiff_cfg_parser.y"
 { disable_cygwin_lowercase_hack(); }
 	],
 	[#Rule 8
@@ -858,7 +849,7 @@ sub
 	[#Rule 9
 		 'ignore_list', 2,
 sub
-#line 327 "psync_cfg_parser.y"
+#line 347 "syncdiff_cfg_parser.y"
 { new_ignore($_[1]); }
 	],
 	[#Rule 10
@@ -867,25 +858,25 @@ sub
 	[#Rule 11
 		 'prefix_list', 6,
 sub
-#line 333 "psync_cfg_parser.y"
+#line 353 "syncdiff_cfg_parser.y"
 { new_prefix_entry($_[3], on_cygwin_lowercase($_[5])); }
 	],
 	[#Rule 12
 		 'block_header', 1,
 sub
-#line 338 "psync_cfg_parser.y"
+#line 358 "syncdiff_cfg_parser.y"
 { new_group(0);  }
 	],
 	[#Rule 13
 		 'block_header', 2,
 sub
-#line 340 "psync_cfg_parser.y"
+#line 360 "syncdiff_cfg_parser.y"
 { new_group($_[2]); }
 	],
 	[#Rule 14
 		 'block_body', 3,
 sub
-#line 345 "psync_cfg_parser.y"
+#line 365 "syncdiff_cfg_parser.y"
 { check_group(); }
 	],
 	[#Rule 15
@@ -912,25 +903,25 @@ sub
 	[#Rule 22
 		 'stmt', 2,
 sub
-#line 360 "psync_cfg_parser.y"
+#line 380 "syncdiff_cfg_parser.y"
 { set_key($_[2]); }
 	],
 	[#Rule 23
 		 'stmt', 2,
 sub
-#line 362 "psync_cfg_parser.y"
+#line 382 "syncdiff_cfg_parser.y"
 { set_auto($_[2]); }
 	],
 	[#Rule 24
 		 'stmt', 2,
 sub
-#line 364 "psync_cfg_parser.y"
+#line 384 "syncdiff_cfg_parser.y"
 { set_bak_dir($_[2]); }
 	],
 	[#Rule 25
 		 'stmt', 2,
 sub
-#line 366 "psync_cfg_parser.y"
+#line 386 "syncdiff_cfg_parser.y"
 { set_bak_gen($_[2]); }
 	],
 	[#Rule 26
@@ -939,13 +930,13 @@ sub
 	[#Rule 27
 		 'host_list', 2,
 sub
-#line 372 "psync_cfg_parser.y"
+#line 392 "syncdiff_cfg_parser.y"
 { add_host($_[2], $_[2], 0); }
 	],
 	[#Rule 28
 		 'host_list', 4,
 sub
-#line 374 "psync_cfg_parser.y"
+#line 394 "syncdiff_cfg_parser.y"
 { add_host($_[2], $_[4], 0); }
 	],
 	[#Rule 29
@@ -957,13 +948,13 @@ sub
 	[#Rule 31
 		 'host_list_slaves', 2,
 sub
-#line 381 "psync_cfg_parser.y"
+#line 401 "syncdiff_cfg_parser.y"
 { add_host($_[2], $_[2], 1); }
 	],
 	[#Rule 32
 		 'host_list_slaves', 4,
 sub
-#line 383 "psync_cfg_parser.y"
+#line 403 "syncdiff_cfg_parser.y"
 { add_host($_[2], $_[4], 1); }
 	],
 	[#Rule 33
@@ -972,7 +963,7 @@ sub
 	[#Rule 34
 		 'excl_list', 2,
 sub
-#line 389 "psync_cfg_parser.y"
+#line 409 "syncdiff_cfg_parser.y"
 { add_patt(0, on_cygwin_lowercase($_[2])); }
 	],
 	[#Rule 35
@@ -981,7 +972,7 @@ sub
 	[#Rule 36
 		 'incl_list', 2,
 sub
-#line 395 "psync_cfg_parser.y"
+#line 415 "syncdiff_cfg_parser.y"
 { add_patt(1, on_cygwin_lowercase($_[2])); }
 	],
 	[#Rule 37
@@ -990,13 +981,13 @@ sub
 	[#Rule 38
 		 'comp_list', 2,
 sub
-#line 401 "psync_cfg_parser.y"
+#line 421 "syncdiff_cfg_parser.y"
 { add_patt(2, on_cygwin_lowercase($_[2])); }
 	],
 	[#Rule 39
 		 '@2-1', 0,
 sub
-#line 406 "psync_cfg_parser.y"
+#line 426 "syncdiff_cfg_parser.y"
 { new_action(); }
 	],
 	[#Rule 40
@@ -1017,13 +1008,13 @@ sub
 	[#Rule 45
 		 'action_stmt', 2,
 sub
-#line 420 "psync_cfg_parser.y"
+#line 440 "syncdiff_cfg_parser.y"
 { set_action_logfile($_[2]); }
 	],
 	[#Rule 46
 		 'action_stmt', 1,
 sub
-#line 422 "psync_cfg_parser.y"
+#line 442 "syncdiff_cfg_parser.y"
 { set_action_dolocal(); }
 	],
 	[#Rule 47
@@ -1032,7 +1023,7 @@ sub
 	[#Rule 48
 		 'action_pattern_list', 2,
 sub
-#line 428 "psync_cfg_parser.y"
+#line 448 "syncdiff_cfg_parser.y"
 { add_action_pattern(on_cygwin_lowercase($_[2])); }
 	],
 	[#Rule 49
@@ -1041,7 +1032,7 @@ sub
 	[#Rule 50
 		 'action_exec_list', 2,
 sub
-#line 434 "psync_cfg_parser.y"
+#line 454 "syncdiff_cfg_parser.y"
 { add_action_exec($_[2]); }
 	]
 ],
@@ -1049,7 +1040,7 @@ sub
     bless($self,$class);
 }
 
-#line 437 "psync_cfg_parser.y"
+#line 457 "syncdiff_cfg_parser.y"
 
 
 
