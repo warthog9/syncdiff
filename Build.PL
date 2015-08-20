@@ -3,7 +3,7 @@ use warnings;
 use Module::Build;
 
 my $class = Module::Build->subclass(code => <<'YAPP');
-require Parse::Yapp;
+use Parse::Yapp;
 sub process_yapp_files {
     my $self = shift;
 
